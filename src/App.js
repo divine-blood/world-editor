@@ -31,18 +31,16 @@ import {
 
 import CancelIcon from "@material-ui/icons/Cancel";
 import WrapTextIcon from "@material-ui/icons/WrapText";
-import SaveAltIcon from "@material-ui/icons/SaveAlt";
-import CloudUploadIcon from "@material-ui/icons/CloudUpload";
-import InsertDriveFileIcon from "@material-ui/icons/InsertDriveFile";
 import AddLocationIcon from "@material-ui/icons/AddLocation";
 import ZoomOutMapIcon from "@material-ui/icons/ZoomOutMap";
 import NoteAdd from "@material-ui/icons/NoteAdd";
 import PersonAddIcon from "@material-ui/icons/PersonAdd";
 import PostAddIcon from "@material-ui/icons/PostAdd";
 import DeleteForeverIcon from "@material-ui/icons/DeleteForever";
-import ArrowUpwardIcon from "@material-ui/icons/ArrowUpward";
 import LockIcon from "@material-ui/icons/Lock";
 import LineStyleIcon from "@material-ui/icons/LineStyle";
+import WbCloudyIcon from "@material-ui/icons/WbCloudy";
+import ComputerIcon from "@material-ui/icons/Computer";
 
 import { withStyles } from "@material-ui/core/styles";
 import DraggableCore from "react-draggable";
@@ -258,6 +256,19 @@ function download(content, fileName, contentType) {
   a.href = URL.createObjectURL(file);
   a.download = fileName;
   a.click();
+}
+
+function filenamePrompt() {
+  var fileName = window.prompt("New file name?");
+  fileName = fileName.replace(/[^0-9a-z_-]/gi, "");
+  if (fileName === "") {
+    alert("BAD FILENAME");
+    return;
+  }
+  if (!fileName.endsWith(".json")) {
+    fileName = fileName + ".json";
+  }
+  return fileName;
 }
 
 const dirInfo = {
@@ -1422,15 +1433,7 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, setData, fileName, 
   }, [user, fileList]);
 
   const saveAs = () => {
-    var fileName = window.prompt("New file name");
-    fileName = fileName.replace(/[^0-9a-z_-]/gi, "");
-    if (fileName === "") {
-      alert("BAD FILENAME");
-      return;
-    }
-    if (!fileName.endsWith(".json")) {
-      fileName = fileName + ".json";
-    }
+    const fileName = filenamePrompt();
     saveFile(fileName);
   };
 
@@ -1501,8 +1504,10 @@ function App() {
   const [value, setValue] = React.useState(0);
   const [editData, setEditData] = React.useState(null);
   const [profile, setProfile] = React.useState(null);
-  const [fileMenuAnchor, setFileMenuAnchor] = React.useState(null);
   const [fileMenuOpen, setFileMenuOpen] = React.useState(false);
+  const [localMenuOpen, setLocalMenuOpen] = React.useState(false);
+  const localMenuIcon = React.useRef(null);
+  const fileMenuAnchor = React.useRef(null);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -1576,23 +1581,6 @@ function App() {
 
   return (
     <>
-      <input
-        accept=".json"
-        style={{ display: "none" }}
-        id="upload-area-file"
-        name="upload-area-file"
-        type="file"
-        onChange={(e) => {
-          var reader = new FileReader();
-          reader.onload = (e) => {
-            var data = JSON.parse(e.target.result);
-            initialPos(data?.rooms || []);
-            setData(data);
-          };
-          reader.readAsText(e.target.files[0]);
-          setFileName(e.target.value.split("\\").pop().split("/").pop());
-        }}
-      />
       <div style={{ float: "right", padding: 8 }}>
         <Tooltip title="New Area">
           <IconButton
@@ -1617,37 +1605,19 @@ function App() {
             <NoteAdd color="secondary" />
           </IconButton>
         </Tooltip>
-        <label htmlFor="upload-area-file">
-          <Tooltip title="Upload Area File">
-            <IconButton color="secondary" variant="contained" component="span">
-              <InsertDriveFileIcon></InsertDriveFileIcon>
-              <ArrowUpwardIcon
-                style={{
-                  position: "absolute",
-                  margin: "auto",
-                  color: "black",
-                  fontSize: 15,
-                  marginTop: 5,
-                }}
-              />
-            </IconButton>
-          </Tooltip>
-        </label>
-        <Tooltip title="Download Area File">
-          <IconButton variant="contained" onClick={() => download(JSON.stringify(data), fileName, "application/json")}>
-            <SaveAltIcon color="secondary" />
+        <Tooltip title="Local Files">
+          <IconButton variant="contained" onClick={() => setLocalMenuOpen(true)} ref={localMenuIcon}>
+            <ComputerIcon color="secondary" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Online Files">
           <IconButton
+            ref={fileMenuAnchor}
             variant="contained"
-            onClick={(e) => {
-              setFileMenuAnchor(e.target);
-              setFileMenuOpen(!fileMenuOpen);
-            }}
+            onClick={(e) => setFileMenuOpen(true)}
             disabled={!profile}
           >
-            <CloudUploadIcon color={profile ? "secondary" : "disabled"} />
+            <WbCloudyIcon color={profile ? "secondary" : "disabled"} />
           </IconButton>
         </Tooltip>
         <GoogleLogin
@@ -1769,13 +1739,48 @@ function App() {
       <FileMenu
         setFileMenuOpen={setFileMenuOpen}
         fileMenuOpen={fileMenuOpen}
-        anchorEl={fileMenuAnchor}
+        anchorEl={fileMenuAnchor.current}
         setData={setData}
         profile={profile}
         fileName={fileName}
         setFileName={setFileName}
         data={data}
       />
+      <Popper open={localMenuOpen} role={undefined} transition disablePortal anchorEl={localMenuIcon.current}>
+        <Paper>
+          <ClickAwayListener onClickAway={() => setLocalMenuOpen(false)}>
+            <MenuList autoFocusItem={fileMenuOpen} id="menu-list-grow">
+              <MenuItem onClick={() => download(JSON.stringify(data), fileName, "application/json")}>
+                Save File
+              </MenuItem>
+              <MenuItem onClick={() => download(JSON.stringify(data), filenamePrompt("Filename?"), "application/json")}>
+                Save File As
+              </MenuItem>
+              <input
+                accept=".json"
+                style={{ display: "none" }}
+                id="upload-area-file"
+                name="upload-area-file"
+                type="file"
+                onChange={(e) => {
+                  var reader = new FileReader();
+                  reader.onload = (e) => {
+                    var data = JSON.parse(e.target.result);
+                    initialPos(data?.rooms || []);
+                    setData(data);
+                    setLocalMenuOpen(false);
+                  };
+                  reader.readAsText(e.target.files[0]);
+                  setFileName(e.target.value.split("\\").pop().split("/").pop());
+                }}
+              />
+              <label htmlFor="upload-area-file">
+                <MenuItem>Edit Local File</MenuItem>
+              </label>
+            </MenuList>
+          </ClickAwayListener>
+        </Paper>
+      </Popper>
     </>
   );
 }
