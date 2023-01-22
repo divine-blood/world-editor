@@ -1351,6 +1351,7 @@ const AreaEdit = ({ data, setData }) => {
         </div>
         <div>
           <TextField
+            disabled={true}
             id="area-name"
             label="Lower Vnum"
             variant="outlined"
@@ -1364,6 +1365,7 @@ const AreaEdit = ({ data, setData }) => {
         </div>
         <div>
           <TextField
+            disabled={true}
             id="area-name"
             label="Upper Vnum"
             variant="outlined"
