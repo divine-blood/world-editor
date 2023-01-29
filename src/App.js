@@ -53,6 +53,92 @@ const imageDimensions = [roomGrid[0] * 70, roomGrid[1] * 100];
 const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const awsEndpoint = process.env.REACT_APP_AWS_ENDPOINT;
 
+
+function centerRooms(rooms) {
+  rooms = [...rooms];
+  const yBounds = [
+    Math.min(...rooms.map((room) => room.editor_grid_y)),
+    Math.max(...rooms.map((room) => room.editor_grid_y)),
+  ];
+  const xBounds = [
+    Math.min(...rooms.map((room) => room.editor_grid_x)),
+    Math.max(...rooms.map((room) => room.editor_grid_x)),
+  ];
+  rooms.forEach((room) => {
+    room.editor_grid_x -= xBounds[1] - Math.floor((xBounds[1] - xBounds[0]) / 2);
+    room.editor_grid_y -= yBounds[1] - Math.floor((yBounds[1] - yBounds[0]) / 2);
+  });
+  return rooms;
+}
+
+function defragRooms(rooms, lowerVnum) {
+  rooms = [...rooms];
+  var moves = {};
+  rooms
+    .sort((a, b) => a.vnum < b.vnum)
+    .forEach((room) => {
+      for (var i = lowerVnum; i < room.vnum; i++) {
+        const vnum = i;
+        if (rooms.find((r) => r.vnum === vnum) === undefined && !Object.values(moves).includes(i)) {
+          moves[room.vnum] = i;
+          break;
+        }
+      }
+    });
+  rooms.forEach((room) => {
+    if (room.vnum in moves) {
+      room.vnum = moves[room.vnum];
+    }
+    objForeach(room.exits, (dir, exit) => {
+      if (exit.to in moves) {
+        exit.to = moves[exit.to];
+      }
+    });
+  });
+  return rooms;
+}
+
+const areaDataReducer = ({areaData, editData}, action) => {
+  switch (action.type) {
+    case "SET_AREA":
+      areaData = action.payload;
+      break;
+    case "AREA_UPDATED":
+      areaData = {...areaData};
+      break;
+    case "CENTER_ROOMS":
+      areaData.rooms = centerRooms(areaData?.rooms || []);
+      break;
+    case "DEFRAG_ROOMS":
+      areaData.rooms = defragRooms(areaData.rooms, areaData.lower_vnum);
+      break;
+    case "EDIT":
+      editData = {...action?.payload};
+      break;
+    case "CLEAR_EDIT":
+      editData = {};
+      break;
+    default:
+      break;
+  }
+  return {areaData: areaData, editData: editData};
+};
+
+const AreaEditorContext = React.createContext();
+
+function cleanupArea(areaData) {
+  areaData = {rooms: [], ...areaData};
+  areaData.rooms = areaData.rooms.filter((room) => room.vnum);
+  areaData.rooms.forEach((room) => {
+    room.exits = objMap(
+      objFilter(room.exits, (dir, exit) => exit && exit.to),
+      (dir, exit) => {
+        objFilter(exit, (key, value) => value && !isNaN(value));
+      });
+  });
+  return areaData;
+}
+
 function objForeach(obj, f) {
   Object.entries(obj).forEach((entry) => {
     const [key, value] = entry;
@@ -126,46 +212,6 @@ function wordWrap(str) {
       .join("\n")
       .trim() + "\n"
   );
-}
-
-function centerRooms(rooms) {
-  const yBounds = [
-    Math.min(...rooms.map((room) => room.editor_grid_y)),
-    Math.max(...rooms.map((room) => room.editor_grid_y)),
-  ];
-  const xBounds = [
-    Math.min(...rooms.map((room) => room.editor_grid_x)),
-    Math.max(...rooms.map((room) => room.editor_grid_x)),
-  ];
-  rooms.forEach((room) => {
-    room.editor_grid_x -= xBounds[1] - Math.floor((xBounds[1] - xBounds[0]) / 2);
-    room.editor_grid_y -= yBounds[1] - Math.floor((yBounds[1] - yBounds[0]) / 2);
-  });
-}
-
-function defragRooms(data) {
-  var moves = {};
-  data.rooms
-    .sort((a, b) => a.vnum < b.vnum)
-    .forEach((room) => {
-      for (var i = data.lower_vnum; i < room.vnum; i++) {
-        const vnum = i;
-        if (data.rooms.find((r) => r.vnum === vnum) === undefined && !Object.values(moves).includes(i)) {
-          moves[room.vnum] = i;
-          break;
-        }
-      }
-    });
-  data.rooms.forEach((room) => {
-    if (room.vnum in moves) {
-      room.vnum = moves[room.vnum];
-    }
-    objForeach(room.exits, (dir, exit) => {
-      if (exit.to in moves) {
-        exit.to = moves[exit.to];
-      }
-    });
-  });
 }
 
 function initialPos(rooms) {
@@ -405,7 +451,8 @@ const StyledTableRow = withStyles((theme) => ({
   },
 }))(TableRow);
 
-function AreaEditor({ data, setData, setEditData, editData, style }) {
+function AreaEditor({ style }) {
+  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
   const viewer = React.useRef(null);
   const [value, setValue] = React.useState(INITIAL_VALUE);
   const [dimensions, setDimensions] = React.useState([0, 0]);
@@ -430,14 +477,14 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
   }, []);
 
   const roomMap = React.useMemo(
-    () => data?.rooms && Object.fromEntries(data.rooms.map((room) => [room.vnum, room])),
-    [data]
+    () => areaData?.rooms && Object.fromEntries(areaData.rooms.map((room) => [room.vnum, room])),
+    [areaData]
   );
 
   const updatePosition = (room, eventData) => {
     room.editor_grid_x = (eventData.x - imageDimensions[0] / 2) / roomGrid[0];
     room.editor_grid_y = (eventData.y - imageDimensions[1] / 2) / roomGrid[1];
-    setData({ ...data });
+    dispatch({type: 'AREA_UPDATED'});
   };
 
   const exitColor = (room, dir) => {
@@ -462,19 +509,18 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
     if (dragging) {
       return;
     }
-    if (editData && editData[0] === "exit" && !editData[1].to) {
-      editData[1] = { ...editData[1], to: room.vnum };
-      setEditData([...editData]);
+    if (editData && editData.mode === "exit" && !editData?.data?.to) {
+      dispatch({type: 'EDIT', payload: {...editData, data: {...editData.data, to: room.vnum}}});
     } else {
-      setEditData(["room", room]);
+      dispatch({type: 'EDIT', payload: {mode: "room", data: room}});
     }
   };
 
   const firefox = navigator.userAgent.indexOf("Firefox") > -1;
 
   const rooms =
-    data?.rooms &&
-    data.rooms.map((room) => (
+    areaData?.rooms &&
+    areaData.rooms.map((room) => (
       <DraggableCore
         position={{
           x: imageDimensions[0] / 2 + room.editor_grid_x * roomGrid[0],
@@ -513,8 +559,8 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
             y={10}
             width={80}
             height={40}
-            stroke={editData && editData[0] === "room" && editData[1].vnum === room.vnum ? "red" : "black"}
-            strokeWidth={editData && editData[0] === "room" && editData[1].vnum === room.vnum ? 3 : 1}
+            stroke={editData?.data?.mode === "room" && editData.data.vnum === room.vnum ? "red" : "black"}
+            strokeWidth={editData?.data?.mode === "room" && editData.data.vnum === room.vnum ? 3 : 1}
             fill="transparent"
           />
           {Object.keys(dirInfo).map((dir) => (
@@ -531,12 +577,10 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
                 strokeWidth={0.5}
                 onClick={(e) => {
                   e.stopPropagation();
-                  var exit = null;
                   if (!(dir in room.exits) || !room.exits[dir].to) {
-                    exit = { to: null };
-                    room.exits[dir] = exit;
+                    room.exits[dir] = { to: null };
                   }
-                  setEditData(["exit", room.exits[dir], room, dir]);
+                  dispatch({type: 'EDIT', payload: {mode: "exit", data: room.exits[dir], room: room, dir: dir}});
                 }}
               />
               <text
@@ -616,7 +660,7 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
   }, []);
 
   const lines = React.useMemo(() => {
-    return data?.rooms
+    return areaData?.rooms
       ?.map((room) =>
         objMap(room.exits, (door, exit) => {
           const from = roomMap[room.vnum];
@@ -629,7 +673,7 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
         })
       )
       .flat(1);
-  }, [data, roomMap]);
+  }, [areaData, roomMap]);
 
   const addRoom = (e) => {
     const bounds = e.target.getBoundingClientRect();
@@ -638,10 +682,10 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
       bounds.height / (imageDimensions[1] / roomGrid[1]),
     ];
     setAddRoomMode(false);
-    for (var i = data.lower_vnum; i < data.upper_vnum; i++) {
+    for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
-      if (data.rooms.find((room) => room.vnum === vnum) === undefined) {
-        data.rooms.push({
+      if (areaData.rooms.find((room) => room.vnum === vnum) === undefined) {
+        areaData.rooms.push({
           vnum: vnum,
           editor_grid_x: Math.floor((e.clientX - bounds.left) / grid[0]) - 35,
           editor_grid_y: Math.floor((e.clientY - bounds.top) / grid[1]) - 50,
@@ -650,7 +694,7 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
           room_flags: [],
           sector: "inside",
         });
-        setData({ ...data });
+        dispatch({type: 'AREA_UPDATED'});
         return;
       }
     }
@@ -680,20 +724,14 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
       <Tooltip title="Defrag Rooms">
         <IconButton
           onClick={() => {
-            defragRooms(data);
-            setData({ ...data });
+            dispatch({type: "DEFRAG_ROOMS"});
           }}
         >
           <LineStyleIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Re-Center Area">
-        <IconButton
-          onClick={() => {
-            centerRooms(data?.rooms || []);
-            setData({ ...data });
-          }}
-        >
+        <IconButton onClick={() => dispatch({type: "CENTER_ROOMS"})}>
           <ZoomOutMapIcon />
         </IconButton>
       </Tooltip>
@@ -743,13 +781,14 @@ function AreaEditor({ data, setData, setEditData, editData, style }) {
   );
 }
 
-function ObjectForm({ data, setData, setEditData, editData }) {
-  const objEditData = React.useMemo(() => editData[1], [editData]);
+function ObjectForm(props) {
+  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const objEditData = React.useMemo(() => editData.data, [editData]);
 
   const updateObject = () => {
-    Object.assign(editData[1], objEditData);
-    setData({ ...data });
-    setEditData(null);
+    Object.assign(editData.data, objEditData);
+    dispatch({type: 'AREA_UPDATED'});
+    dispatch({type: 'CLEAR_EDIT'});
   };
 
   const stripObject = (resets, vnum) => {
@@ -765,14 +804,14 @@ function ObjectForm({ data, setData, setEditData, editData }) {
     if (!window.confirm("Delete Object #" + vnum + "?")) {
       return;
     }
-    data.objects = data.objects.filter((obj) => obj.vnum !== vnum);
-    data.rooms.forEach((room) => {
+    areaData.objects = areaData.objects.filter((obj) => obj.vnum !== vnum);
+    areaData.rooms.forEach((room) => {
       if (room.resets) {
         room.resets = stripObject(room.resets, vnum);
       }
     });
-    setData({ ...data });
-    setEditData(null);
+    dispatch({type: 'AREA_UPDATED'});
+    dispatch({type: 'CLEAR_EDIT'});
   };
 
   return (
@@ -791,7 +830,7 @@ function ObjectForm({ data, setData, setEditData, editData }) {
       key={Date.now()}
     >
       <form>
-        <IconButton variant="contained" onClick={() => setEditData(null)} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Object #{objEditData.vnum}
@@ -838,7 +877,7 @@ function ObjectForm({ data, setData, setEditData, editData }) {
             <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateObject}>
               Update
             </Button>
-            <Button variant="contained" onClick={() => setEditData(null)}>
+            <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
               Cancel
             </Button>
           </div>
@@ -848,27 +887,28 @@ function ObjectForm({ data, setData, setEditData, editData }) {
   );
 }
 
-function MobForm({ data, setData, setEditData, editData }) {
-  const mobEditData = React.useMemo(() => ({ ...editData[1] }), [editData]);
+function MobForm(props) {
+  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const mobEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
 
   const updateMob = () => {
-    Object.assign(editData[1], mobEditData);
-    setData({ ...data });
-    setEditData(null);
+    Object.assign(editData.data, mobEditData);
+    dispatch({type: 'AREA_UPDATED'});
+    dispatch({type: 'CLEAR_EDIT'});
   };
 
   const deleteMob = (vnum) => {
     if (!window.confirm("Delete Mob #" + vnum + "?")) {
       return;
     }
-    data.mobs = data.mobs.filter((mob) => mob.vnum !== vnum);
-    data.rooms.forEach((room) => {
+    areaData.mobs = areaData.mobs.filter((mob) => mob.vnum !== vnum);
+    areaData.rooms.forEach((room) => {
       if (room.resets) {
         room.resets = room.resets.filter((reset) => reset.type !== "mob" || reset.vnum !== vnum);
       }
     });
-    setData({ ...data });
-    setEditData(null);
+    dispatch({type: 'AREA_UPDATED'});
+    dispatch({type: 'CLEAR_EDIT'});
   };
 
   return (
@@ -887,7 +927,7 @@ function MobForm({ data, setData, setEditData, editData }) {
       key={Date.now()}
     >
       <form>
-        <IconButton variant="contained" onClick={() => setEditData(null)} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Mob #{mobEditData.vnum}
@@ -953,7 +993,7 @@ function MobForm({ data, setData, setEditData, editData }) {
             <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateMob}>
               Update
             </Button>
-            <Button variant="contained" onClick={() => setEditData(null)}>
+            <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
               Cancel
             </Button>
           </div>
@@ -963,15 +1003,16 @@ function MobForm({ data, setData, setEditData, editData }) {
   );
 }
 
-function ExitForm({ data, setData, setEditData, editData }) {
-  const dir = editData[3];
-  const room = editData[2];
-  const exitData = editData[1];
+function ExitForm(props) {
+  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const dir = editData.dir;
+  const room = editData.room;
+  const exitData = editData.data;
 
   const exitEditData = React.useMemo(() => ({ flags: [], to: null, keyword: null, ...exitData }), [exitData]);
 
   const acceptAndReciprocate = () => {
-    var toRoom = data.rooms.find((room) => room.vnum === exitEditData.to);
+    var toRoom = areaData.rooms.find((room) => room.vnum === exitEditData.to);
     if (toRoom === undefined) {
       alert("Unable to find to-room " + exitEditData.to);
     } else {
@@ -984,23 +1025,23 @@ function ExitForm({ data, setData, setEditData, editData }) {
         Object.assign(toRoom.exits[rev], exitEditData);
       }
       toRoom.exits[rev].to = room.vnum;
-      setEditData(null);
+      dispatch({type: 'CLEAR_EDIT'});
     }
-    setData({ ...data });
+    dispatch({type: 'AREA_UPDATED'});
   };
 
   const deleteExit = () => {
     if (!window.confirm("Delete This Exit?")) {
       return;
     }
-    var toRoom = data.rooms.find((room) => room.vnum === exitEditData.to);
+    var toRoom = areaData.rooms.find((room) => room.vnum === exitEditData.to);
     if (toRoom !== undefined) {
       const rev = dirInfo[dir].rev;
       delete toRoom.exits[rev];
     }
     delete room.exits[dir];
-    setData({ ...data });
-    setEditData(null);
+    dispatch({type: 'AREA_UPDATED'});
+    dispatch({type: 'CLEAR_EDIT'});
   };
 
   return (
@@ -1019,11 +1060,11 @@ function ExitForm({ data, setData, setEditData, editData }) {
       key={Date.now()}
     >
       <form>
-        <IconButton variant="contained" onClick={() => setEditData(null)} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         <h2>
-          #{room.vnum} : {dir}
+          #{editData.room.vnum} : {dir}
         </h2>
         <div>
           <TextField
@@ -1088,7 +1129,7 @@ function ExitForm({ data, setData, setEditData, editData }) {
                 <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={acceptAndReciprocate}>
                   Update
                 </Button>
-                <Button variant="contained" onClick={() => setEditData(null)}>
+                <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
                   Cancel
                 </Button>
               </div>
@@ -1100,37 +1141,38 @@ function ExitForm({ data, setData, setEditData, editData }) {
   );
 }
 
-function RoomForm({ data, setData, roomData, setEditData }) {
+function RoomForm(props) {
+  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
   const [updateEnabled, setUpdateEnabled] = React.useState(false);
   const [tab, setTab] = React.useState(0);
-  const roomEditData = { ...roomData };
+  const roomEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
 
   React.useEffect(() => {
     setUpdateEnabled(false);
-  }, [roomData]);
+  }, [editData.data]);
 
   const deleteRoom = (vnum) => {
     if (!window.confirm("Delete Room #" + vnum + "?")) {
       return;
     }
-    setEditData(null);
-    data.rooms = data.rooms.filter((room) => room.vnum !== vnum);
-    data.rooms.forEach((room) => {
+    dispatch({type: 'CLEAR_EDIT'});
+    areaData.rooms = areaData.rooms.filter((room) => room.vnum !== vnum);
+    areaData.rooms.forEach((room) => {
       room.exits = objFilter(room.exits, (dir, exit) => exit.to !== vnum);
     });
-    setData({ ...data });
+    dispatch({type: 'AREA_UPDATED'});
   };
 
   const resetName = (reset) => {
     if (reset.type === "mob") {
-      const mob = data.mobs.find((mob) => reset.vnum === mob.vnum);
+      const mob = areaData.mobs.find((mob) => reset.vnum === mob.vnum);
       if (mob) {
         return mob.short_description + " (mob #" + reset.vnum + ")";
       } else {
         return "mob #" + reset.vnum;
       }
     } else if (reset.type === "object") {
-      const obj = data.objects.find((obj) => reset.vnum === obj.vnum);
+      const obj = areaData.objects.find((obj) => reset.vnum === obj.vnum);
       if (obj) {
         return obj.short_description + " (obj #" + reset.vnum + ")";
       } else {
@@ -1161,7 +1203,7 @@ function RoomForm({ data, setData, roomData, setEditData }) {
       }}
       key={"room-" + roomEditData.vnum}
     >
-      <IconButton variant="contained" onClick={() => setEditData(null)} style={{ float: "right" }}>
+      <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
         <CancelIcon color="secondary"></CancelIcon>
       </IconButton>
       <Tabs value={tab} onChange={(e, val) => setTab(val)} textColor="secondary" indicatorColor="secondary">
@@ -1271,12 +1313,12 @@ function RoomForm({ data, setData, roomData, setEditData }) {
               variant="contained"
               color="secondary"
               style={{ marginRight: 5 }}
-              onClick={() => deleteRoom(roomData.vnum)}
+              onClick={() => deleteRoom(editData.data.vnum)}
             >
               Delete Room
             </Button>
             <div style={{ float: "right" }}>
-              <Button variant="contained" style={{ marginRight: 5 }} onClick={() => setEditData(null)}>
+              <Button variant="contained" style={{ marginRight: 5 }} onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
                 Cancel
               </Button>
               <Button
@@ -1285,8 +1327,9 @@ function RoomForm({ data, setData, roomData, setEditData }) {
                 color="primary"
                 style={{ marginRight: 5 }}
                 onClick={() => {
-                  Object.assign(roomData, roomEditData);
-                  setEditData(null);
+                  Object.assign(editData.data, roomEditData);
+                  dispatch({type: 'AREA_UPDATED'});
+                  dispatch({type: 'CLEAR_EDIT'});
                 }}
               >
                 Update
@@ -1299,17 +1342,18 @@ function RoomForm({ data, setData, roomData, setEditData }) {
   );
 }
 
-const AreaEdit = ({ data, setData }) => {
+const AreaEdit = (props) => {
+  const {areaData, dispatch} = React.useContext(AreaEditorContext);
   const [updateEnabled, setUpdateEnabled] = React.useState(false);
-  const areaEditData = { ...data };
+  const areaEditData = { ...areaData };
 
   React.useEffect(() => {
     setUpdateEnabled(false);
-  }, [data]);
+  }, [areaData]);
 
   return (
-    data?.rooms !== undefined && (
-      <form key={data.name} style={{ padding: 30 }}>
+    areaData?.rooms !== undefined && (
+      <form key={areaData.name} style={{ padding: 30 }}>
         <div>
           <TextField
             id="area-name"
@@ -1384,7 +1428,7 @@ const AreaEdit = ({ data, setData }) => {
             color="primary"
             style={{ marginRight: 5 }}
             onClick={() => {
-              setData(areaEditData);
+              dispatch({type: 'SET_AREA', payload: areaEditData});
               setUpdateEnabled(false);
             }}
           >
@@ -1396,7 +1440,8 @@ const AreaEdit = ({ data, setData }) => {
   );
 };
 
-function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, setData, fileName, setFileName, profile, data }) {
+function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileName, profile }) {
+  const {areaData, dispatch} = React.useContext(AreaEditorContext);
   const [fileList, setFileList] = React.useState(null);
   const user = profile && profile.googleId;
 
@@ -1404,7 +1449,7 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, setData, fileName, 
     fetch(awsEndpoint + "?area_action=put&user=" + encodeURIComponent(user) + "&file=" + encodeURIComponent(fileName))
       .then((res) => res.json())
       .then((res) => {
-        fetch(res.url, { method: "PUT", body: JSON.stringify(data) }).then(() => setFileList(null));
+        fetch(res.url, { method: "PUT", body: JSON.stringify(cleanupArea(areaData)) }).then(() => setFileList(null));
       });
     setFileName(fileName);
     setFileMenuOpen(false);
@@ -1416,10 +1461,10 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, setData, fileName, 
       .then((res) => {
         fetch(res.url)
           .then((res) => res.json())
-          .then((res) => {
+          .then((loadedAreaData) => {
             setFileMenuOpen(false);
             setFileName(fileName);
-            setData(res);
+            dispatch({type: 'SET_AREA', payload: loadedAreaData});
           });
       });
   };
@@ -1501,49 +1546,28 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, setData, fileName, 
 }
 
 function App() {
-  const [data, setData] = React.useState({});
+  const [{areaData, editData}, dispatch] = React.useReducer(areaDataReducer, {areaData: {}, editData: {}});
   const [fileName, setFileName] = React.useState(null);
-  const [value, setValue] = React.useState(0);
-  const [editData, setEditData] = React.useState(null);
+  const [activeTab, setActiveTab] = React.useState(0);
   const [profile, setProfile] = React.useState(null);
   const [fileMenuOpen, setFileMenuOpen] = React.useState(false);
   const [localMenuOpen, setLocalMenuOpen] = React.useState(false);
   const localMenuIcon = React.useRef(null);
   const fileMenuAnchor = React.useRef(null);
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-  };
-
-  React.useEffect(() => {
-    // data cleanup
-    if (data && data?.rooms) {
-      data.rooms = data.rooms.filter((room) => room.vnum);
-      objForeach(data.rooms, (dir, room) => {
-        objFilter(room, (key, value) => value && !isNaN(value));
-      });
-    }
-    data?.rooms?.forEach((room) => {
-      room.exits = objFilter(room.exits, (dir, exit) => exit && exit.to);
-      objForeach(room.exits, (dir, exit) => {
-        objFilter(exit, (key, value) => value && !isNaN(value));
-      });
-    });
-  }, [data]);
-
   const addObject = () => {
-    for (var i = data.lower_vnum; i < data.upper_vnum; i++) {
+    for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
-      if (data.objects.find((object) => object.vnum === vnum) === undefined) {
+      if (areaData.objects.find((object) => object.vnum === vnum) === undefined) {
         const newObject = {
           vnum: vnum,
           name: "object new",
           short_description: "a new object",
           description: "A brand new object is here.",
         };
-        data.objects.push(newObject);
-        setData({ ...data });
-        setEditData(["obj", newObject]);
+        areaData.objects.push(newObject);
+        dispatch({type: 'AREA_UPDATED'});
+        dispatch({type: 'EDIT', payload: {mode: 'obj', data: newObject}});
         return;
       }
     }
@@ -1551,9 +1575,9 @@ function App() {
   };
 
   const addMobile = () => {
-    for (var i = data.lower_vnum; i < data.upper_vnum; i++) {
+    for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
-      if (data.mobs.find((mob) => mob.vnum === vnum) === undefined) {
+      if (areaData.mobs.find((mob) => mob.vnum === vnum) === undefined) {
         const newMob = {
           vnum: vnum,
           name: "mob new",
@@ -1561,9 +1585,9 @@ function App() {
           long_description: "A brand new mob is here.",
           description: "This is a mob. It looks new.",
         };
-        data.mobs.push(newMob);
-        setData({ ...data });
-        setEditData(["mob", newMob]);
+        areaData.mobs.push(newMob);
+        dispatch({type: 'AREA_UPDATED'});
+        dispatch({type: 'EDIT', payload: {mode: 'mob', data: newMob}});
         return;
       }
     }
@@ -1582,14 +1606,14 @@ function App() {
   }, []);
 
   return (
-    <>
+    <AreaEditorContext.Provider value={{ areaData: areaData, editData: editData, dispatch: dispatch }} >
       <div style={{ float: "right", padding: 8 }}>
         <Tooltip title="New Area">
           <IconButton
             variant="contained"
             onClick={() => {
               if (window.confirm("Create New Area?")) {
-                setData({
+                dispatch({type: 'SET_AREA', payload: {
                   rooms: [],
                   mobs: [],
                   objects: [],
@@ -1599,7 +1623,7 @@ function App() {
                   open: false,
                   flags: [],
                   min_level: 100,
-                });
+                }});
                 setFileName("area.json");
               }
             }}
@@ -1633,7 +1657,7 @@ function App() {
         />
       </div>
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={value} onChange={handleChange}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
           <Tab label="Area" id="simple-tab-0" />
           <Tab label="Rooms" id="simple-tab-1" />
           <Tab label="Mobs" id="simple-tab-2" />
@@ -1641,21 +1665,21 @@ function App() {
         </Tabs>
       </Box>
       <div style={{ position: "absolute", left: 0, top: 58, bottom: 0, right: 0 }}>
-        <TabPanel value={value} index={0}>
-          <AreaEdit data={data} setData={setData} />
+        <TabPanel value={activeTab} index={0}>
+          <AreaEdit />
         </TabPanel>
 
-        <TabPanel value={value} index={1}>
-          {data?.rooms && <AreaEditor data={data} setData={setData} setEditData={setEditData} editData={editData} />}
+        <TabPanel value={activeTab} index={1}>
+          {areaData?.rooms && <AreaEditor />}
           <div style={{ position: "absolute", left: 10, top: 0, color: "black" }}>
-            {data?.name} - {fileName}
+            {areaData?.name} - {fileName}
           </div>
         </TabPanel>
 
-        <TabPanel value={value} index={2} style={{ paddingLeft: 15 }}>
+        <TabPanel value={activeTab} index={2} style={{ paddingLeft: 15 }}>
           <Button
             variant="contained"
-            disabled={Object.keys(data).length === 0}
+            disabled={Object.keys(areaData).length === 0}
             color="secondary"
             startIcon={<PersonAddIcon />}
             onClick={addMobile}
@@ -1672,9 +1696,9 @@ function App() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.mobs &&
-                  data.mobs.map((mob) => (
-                    <StyledTableRow key={"mob-card-" + mob.vnum} onClick={() => setEditData(["mob", mob])}>
+                {areaData?.mobs &&
+                  areaData.mobs.map((mob) => (
+                    <StyledTableRow key={"mob-card-" + mob.vnum} onClick={() => dispatch({type: 'EDIT', payload: {mode: "mob", data: mob}})}>
                       <StyledTableCell component="th" scope="row">
                         {mob.vnum}
                       </StyledTableCell>
@@ -1689,10 +1713,10 @@ function App() {
           </TableContainer>
         </TabPanel>
 
-        <TabPanel value={value} index={3} style={{ paddingLeft: 15 }}>
+        <TabPanel value={activeTab} index={3} style={{ paddingLeft: 15 }}>
           <Button
             variant="contained"
-            disabled={Object.keys(data).length === 0}
+            disabled={Object.keys(areaData).length === 0}
             color="secondary"
             startIcon={<PostAddIcon />}
             onClick={addObject}
@@ -1709,9 +1733,9 @@ function App() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.objects &&
-                  data.objects.map((object) => (
-                    <StyledTableRow key={"object-card-" + object.vnum} onClick={() => setEditData(["obj", object])}>
+                {areaData?.objects &&
+                  areaData.objects.map((object) => (
+                    <StyledTableRow key={"object-card-" + object.vnum} onClick={() => dispatch({type: 'EDIT', payload: {mode: "obj", data: object}})}>
                       <StyledTableCell component="th" scope="row">
                         {object.vnum}
                       </StyledTableCell>
@@ -1726,36 +1750,26 @@ function App() {
           </TableContainer>
         </TabPanel>
       </div>
-      {editData && editData[0] === "room" && (
-        <RoomForm data={data} setData={setData} roomData={editData[1]} setEditData={setEditData} />
-      )}
-      {editData && editData[0] === "exit" && (
-        <ExitForm data={data} setData={setData} setEditData={setEditData} editData={editData} />
-      )}
-      {editData && editData[0] === "mob" && (
-        <MobForm data={data} setData={setData} setEditData={setEditData} editData={editData} />
-      )}
-      {editData && editData[0] === "obj" && (
-        <ObjectForm data={data} setData={setData} setEditData={setEditData} editData={editData} />
-      )}
+      {editData?.mode === "room" && (<RoomForm />)}
+      {editData?.mode === "exit" && (<ExitForm />)}
+      {editData?.mode === "mob" && (<MobForm />)}
+      {editData?.mode === "obj" && (<ObjectForm />)}
       <FileMenu
         setFileMenuOpen={setFileMenuOpen}
         fileMenuOpen={fileMenuOpen}
         anchorEl={fileMenuAnchor.current}
-        setData={setData}
         profile={profile}
         fileName={fileName}
         setFileName={setFileName}
-        data={data}
       />
       <Popper open={localMenuOpen} role={undefined} transition disablePortal anchorEl={localMenuIcon.current}>
         <Paper>
           <ClickAwayListener onClickAway={() => setLocalMenuOpen(false)}>
             <MenuList autoFocusItem={fileMenuOpen} id="menu-list-grow">
-              <MenuItem onClick={() => download(JSON.stringify(data), fileName, "application/json")}>
+              <MenuItem onClick={() => download(JSON.stringify(cleanupArea(areaData)), fileName, "application/json")}>
                 Save File
               </MenuItem>
-              <MenuItem onClick={() => download(JSON.stringify(data), filenamePrompt("Filename?"), "application/json")}>
+              <MenuItem onClick={() => download(JSON.stringify(cleanupArea(areaData)), filenamePrompt("Filename?"), "application/json")}>
                 Save File As
               </MenuItem>
               <input
@@ -1767,9 +1781,9 @@ function App() {
                 onChange={(e) => {
                   var reader = new FileReader();
                   reader.onload = (e) => {
-                    var data = JSON.parse(e.target.result);
-                    initialPos(data?.rooms || []);
-                    setData(data);
+                    var loadedAreaData = JSON.parse(e.target.result);
+                    initialPos(loadedAreaData?.rooms || []);
+                    dispatch({type: 'SET_AREA', payload: loadedAreaData});
                     setLocalMenuOpen(false);
                   };
                   reader.readAsText(e.target.files[0]);
@@ -1783,7 +1797,7 @@ function App() {
           </ClickAwayListener>
         </Paper>
       </Popper>
-    </>
+    </AreaEditorContext.Provider>
   );
 }
 
