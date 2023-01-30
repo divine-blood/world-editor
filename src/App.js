@@ -130,33 +130,23 @@ function cleanupArea(areaData) {
   areaData = {rooms: [], ...areaData};
   areaData.rooms = areaData.rooms.filter((room) => room.vnum);
   areaData.rooms.forEach((room) => {
-    room.exits = objMap(
-      objFilter(room.exits, (dir, exit) => exit && exit.to),
-      (dir, exit) => {
-        objFilter(exit, (key, value) => value && !isNaN(value));
-      });
-  });
+		Object.entries(room.exits).forEach(([dir, exit]) => {
+				room.exits[dir] = objFilter(exit, (key, value) => value);
+		})
+    room.exits = objFilter(room.exits, (dir, exit) => exit && exit.to);
+	});
   return areaData;
 }
 
 function objForeach(obj, f) {
-  Object.entries(obj).forEach((entry) => {
-    const [key, value] = entry;
+  Object.entries(obj).forEach(([key, value]) => {
     f(key, value);
-  });
-}
-
-function objMap(obj, f) {
-  return Object.entries(obj).map((entry) => {
-    const [key, value] = entry;
-    return f(key, value);
   });
 }
 
 function objFilter(obj, f) {
   var copy = {};
-  Object.entries(obj).forEach((entry) => {
-    const [key, value] = entry;
+  Object.entries(obj).forEach(([key, value]) => {
     if (f(key, value)) {
       copy[key] = value;
     }
@@ -660,9 +650,8 @@ function AreaEditor({ style }) {
   }, []);
 
   const lines = React.useMemo(() => {
-    return areaData?.rooms
-      ?.map((room) =>
-        objMap(room.exits, (door, exit) => {
+    return areaData?.rooms?.map((room) =>
+				Object.entries(room.exits).map(([door, exit]) => {
           const from = roomMap[room.vnum];
           const to = roomMap[exit.to];
           if (from && to) {
