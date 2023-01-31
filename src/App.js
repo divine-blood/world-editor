@@ -1260,6 +1260,7 @@ function RoomForm(props) {
               defaultValue={roomEditData.sector}
               onChange={(e) => {
                 roomEditData.sector = e.target.value;
+                setUpdateEnabled(true);
               }}
             >
               {Object.keys(sectors).map((sector) => (
@@ -1427,7 +1428,6 @@ const AreaEdit = (props) => {
             onClick={() => {
               dispatch({type: 'SET_AREA', payload: areaEditData});
               const newLower = parseInt(prompt("New Lower Vnum?"));
-              console.log(newLower);
               if (!isNaN(newLower)) {
                 dispatch({type: "REVNUM_AREA", newLower: newLower});
                 Object.assign(areaEditData, areaData);
