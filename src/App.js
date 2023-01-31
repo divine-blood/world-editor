@@ -89,7 +89,7 @@ function defragRooms(rooms, lowerVnum) {
     if (room.vnum in moves) {
       room.vnum = moves[room.vnum];
     }
-    objForeach(room.exits, (dir, exit) => {
+    Object.entries(room.exits).forEach(([dir, exit]) => {
       if (exit.to in moves) {
         exit.to = moves[exit.to];
       }
@@ -97,6 +97,48 @@ function defragRooms(rooms, lowerVnum) {
   });
   return rooms;
 }
+
+const reVnum = (areaData, newLower) => {
+  const reVnumReset = (resets) => {
+    resets.forEach((reset) => {
+      if (reset.vnum >= areaData.lower_vnum && reset.vnum < areaData.upper_vnum) {
+        reset.vnum = (reset.vnum - areaData.lower_vnum) + newLower;
+      }
+      if (reset.objects) {
+        reset.objects = reVnumReset(reset.objects);
+      }
+    });
+  };
+
+  areaData.mobs.forEach((mob) => {mob.vnum = (mob.vnum - areaData.lower_vnum) + newLower;});
+  areaData.objects.forEach((obj) => {obj.vnum = (obj.vnum - areaData.lower_vnum) + newLower;});
+  areaData.rooms.forEach((room) => {
+    room.vnum = (room.vnum - areaData.lower_vnum) + newLower;
+    Object.entries(room.exits).forEach(([dir, exit]) => {
+        if (exit && exit?.to && exit.to >= areaData.lower_vnum && exit.to < areaData.upper_vnum) {
+          exit.to = (exit.to - areaData.lower_vnum) + newLower;
+        }
+    });
+    reVnumReset(room?.resets || []);
+  });
+  [areaData?.roomprogs, areaData?.mobprogs, areaData?.objprogs].forEach((progs) => {
+    progs?.forEach((prog) => {
+      prog.vnum = (prog.vnum - areaData.lower_vnum) + newLower;
+      prog.code = prog.code.replaceAll(
+        /(^|(?!\n)) *(track|goto|at|[gco]?transfer|if\s*(room|mobhere|objhere|mobexists|objexists|carries|wears|contains|vnum))\b.*/gi,
+        (candidateLine) => candidateLine.replaceAll(/\d+/gs, (num) => {
+          var n = parseInt(num);
+          if (n >= areaData.lower_vnum && n < areaData.upper_vnum) {
+            return (n - areaData.lower_vnum) + newLower;
+          }
+          return n;
+        })
+      );
+    });
+  });
+  areaData.upper_vnum = (areaData.upper_vnum - areaData.lower_vnum) + newLower;
+  areaData.lower_vnum = newLower;
+};
 
 const areaDataReducer = ({areaData, editData}, action) => {
   switch (action.type) {
@@ -108,6 +150,10 @@ const areaDataReducer = ({areaData, editData}, action) => {
       break;
     case "CENTER_ROOMS":
       areaData.rooms = centerRooms(areaData?.rooms || []);
+      break;
+    case "REVNUM_AREA":
+      reVnum(areaData, action.newLower);
+      areaData = {...areaData};
       break;
     case "DEFRAG_ROOMS":
       areaData.rooms = defragRooms(areaData.rooms, areaData.lower_vnum);
@@ -130,18 +176,12 @@ function cleanupArea(areaData) {
   areaData = {rooms: [], ...areaData};
   areaData.rooms = areaData.rooms.filter((room) => room.vnum);
   areaData.rooms.forEach((room) => {
-		Object.entries(room.exits).forEach(([dir, exit]) => {
-				room.exits[dir] = objFilter(exit, (key, value) => value);
-		})
+    Object.entries(room.exits).forEach(([dir, exit]) => {
+        room.exits[dir] = objFilter(exit, (key, value) => value);
+    })
     room.exits = objFilter(room.exits, (dir, exit) => exit && exit.to);
-	});
-  return areaData;
-}
-
-function objForeach(obj, f) {
-  Object.entries(obj).forEach(([key, value]) => {
-    f(key, value);
   });
+  return areaData;
 }
 
 function objFilter(obj, f) {
@@ -243,7 +283,7 @@ function initialPos(rooms) {
   });
   for (var i = 0; i <= 25; i++) {
     shuffled(toPlace).forEach((room) => {
-      objForeach(room.exits, (dir, exit) => {
+      Object.entries(room.exits).forEach(([dir, exit]) => {
         switch (dir.toLowerCase()) {
           case "north":
             tryPlace(exit.to, room.editor_grid_x, room.editor_grid_y - 2);
@@ -378,17 +418,36 @@ const roomFlags = [
   "no_quest",
 ];
 
+const EditForm = (props) => {
+    return (
+      <Paper
+        style={{
+          position: "absolute",
+          width: 600,
+          top: 58,
+          bottom: 0,
+          right: 0,
+          overflowY: "scroll",
+          overflowX: "hidden",
+          padding: 20,
+        }}
+      >
+        {props.children}
+      </Paper>
+    );
+};
+
 const ExitLine = ({ from, to }) => {
   var fromDir = null;
   var toDir = null;
-  objForeach(from.exits, (door, exit) => {
+  Object.entries(from.exits).forEach(([dir, exit]) => {
     if (exit.to === to.vnum) {
-      fromDir = door;
+      fromDir = dir;
     }
   });
-  objForeach(to.exits, (door, exit) => {
+  Object.entries(to.exits).forEach(([dir, exit]) => {
     if (exit.to === from.vnum) {
-      toDir = door;
+      toDir = dir;
     }
   });
   if (!toDir) {
@@ -478,21 +537,19 @@ function AreaEditor({ style }) {
   };
 
   const exitColor = (room, dir) => {
-    var r = "white";
-    objForeach(room.exits, (door, exit) => {
-      if (door === dir) {
-        if (exit.flags?.includes("locked")) {
-          r = "red";
-        } else if (exit.flags?.includes("closed")) {
-          r = "orange";
-        } else if (exit.flags?.includes("door")) {
-          r = "yellow";
-        } else if (exit?.to) {
-          r = "#AAA";
-        }
+    const exit = room?.exits[dir];
+    if (exit) {
+      if (exit.flags?.includes("locked")) {
+        return "red";
+      } else if (exit.flags?.includes("closed")) {
+        return "orange";
+      } else if (exit.flags?.includes("door")) {
+        return "yellow";
+      } else if (exit?.to) {
+        return "#AAA";
       }
-    });
-    return r;
+    }
+    return "white";
   };
 
   const clickRoom = (room) => {
@@ -651,7 +708,7 @@ function AreaEditor({ style }) {
 
   const lines = React.useMemo(() => {
     return areaData?.rooms?.map((room) =>
-				Object.entries(room.exits).map(([door, exit]) => {
+        Object.entries(room.exits).map(([door, exit]) => {
           const from = roomMap[room.vnum];
           const to = roomMap[exit.to];
           if (from && to) {
@@ -804,20 +861,7 @@ function ObjectForm(props) {
   };
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        width: 600,
-        top: 58,
-        bottom: 0,
-        right: 0,
-        overflowY: "scroll",
-        overflowX: "hidden",
-        backgroundColor: "black",
-        padding: 20,
-      }}
-      key={Date.now()}
-    >
+    <EditForm key={Date.now()}>
       <form>
         <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
@@ -872,7 +916,7 @@ function ObjectForm(props) {
           </div>
         </div>
       </form>
-    </div>
+    </EditForm>
   );
 }
 
@@ -901,20 +945,7 @@ function MobForm(props) {
   };
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        width: 600,
-        top: 58,
-        bottom: 0,
-        right: 0,
-        overflowY: "scroll",
-        overflowX: "hidden",
-        backgroundColor: "black",
-        padding: 20,
-      }}
-      key={Date.now()}
-    >
+    <EditForm key={Date.now()}>
       <form>
         <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
@@ -988,7 +1019,7 @@ function MobForm(props) {
           </div>
         </div>
       </form>
-    </div>
+    </EditForm>
   );
 }
 
@@ -1034,20 +1065,7 @@ function ExitForm(props) {
   };
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        width: 600,
-        top: 58,
-        bottom: 0,
-        right: 0,
-        overflowY: "scroll",
-        overflowX: "hidden",
-        backgroundColor: "black",
-        padding: 20,
-      }}
-      key={Date.now()}
-    >
+    <EditForm key={Date.now()}>
       <form>
         <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
@@ -1126,7 +1144,7 @@ function ExitForm(props) {
           </>
         )}
       </form>
-    </div>
+    </EditForm>
   );
 }
 
@@ -1178,20 +1196,7 @@ function RoomForm(props) {
   );
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        width: 600,
-        top: 58,
-        bottom: 0,
-        right: 0,
-        overflowY: "scroll",
-        overflowX: "hidden",
-        backgroundColor: "black",
-        padding: 20,
-      }}
-      key={"room-" + roomEditData.vnum}
-    >
+    <EditForm key={"room-" + roomEditData.vnum}>
       <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
         <CancelIcon color="secondary"></CancelIcon>
       </IconButton>
@@ -1327,7 +1332,7 @@ function RoomForm(props) {
           </div>
         </form>
       </TabPanel>
-    </div>
+    </EditForm>
   );
 }
 
@@ -1388,12 +1393,8 @@ const AreaEdit = (props) => {
             id="area-name"
             label="Lower Vnum"
             variant="outlined"
-            defaultValue={areaEditData.lower_vnum}
+            value={areaEditData.lower_vnum}
             style={{ width: 400, marginBottom: 15 }}
-            onChange={(e) => {
-              areaEditData.lower_vnum = parseInt(e.target.value);
-              setUpdateEnabled(true);
-            }}
           />
         </div>
         <div>
@@ -1402,15 +1403,31 @@ const AreaEdit = (props) => {
             id="area-name"
             label="Upper Vnum"
             variant="outlined"
-            defaultValue={areaEditData.upper_vnum}
+            value={areaEditData.upper_vnum}
             style={{ width: 400, marginBottom: 15 }}
-            onChange={(e) => {
-              areaEditData.upper_vnum = parseInt(e.target.value);
-              setUpdateEnabled(true);
-            }}
           />
         </div>
         <div style={{ width: 400, textAlign: "right" }}>
+          <Button
+            disabled={!areaData.lower_vnum}
+            variant="contained"
+            color="primary"
+            style={{ marginRight: 5 }}
+            onClick={() => {
+              dispatch({type: 'SET_AREA', payload: areaEditData});
+              const newLower = parseInt(prompt("New Lower Vnum?"));
+              console.log(newLower);
+              if (!isNaN(newLower)) {
+                dispatch({type: "REVNUM_AREA", newLower: newLower});
+                Object.assign(areaEditData, areaData);
+                setUpdateEnabled(false);
+              } else {
+                alert("Invalid vnum.");
+              }
+            }}
+          >
+            Re-Vnum Tool
+          </Button>
           <Button
             disabled={!updateEnabled}
             variant="contained"
