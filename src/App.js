@@ -110,33 +110,44 @@ const reVnum = (areaData, newLower) => {
     });
   };
 
-  areaData.mobs.forEach((mob) => {mob.vnum = (mob.vnum - areaData.lower_vnum) + newLower;});
-  areaData.objects.forEach((obj) => {obj.vnum = (obj.vnum - areaData.lower_vnum) + newLower;});
-  areaData.rooms.forEach((room) => {
-    room.vnum = (room.vnum - areaData.lower_vnum) + newLower;
+  const revnum = (vnum) => {
+    if (vnum >= areaData.lower_vnum && vnum <= areaData.upper_vnum) {
+      return (vnum - areaData.lower_vnum) + newLower;
+    }
+    return vnum;
+  };
+
+  areaData?.mobs?.forEach((mob) => {
+    mob.vnum = revnum(mob.vnum);
+    mob?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
+    if (mob.group) {
+      mob.group = revnum(mob.group);
+    }
+  });
+  areaData?.objects?.forEach((obj) => {
+    obj.vnum = revnum(obj.vnum);
+    obj?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
+  });
+  areaData?.rooms?.forEach((room) => {
+    room.vnum = revnum(room.vnum);
+    room?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
     Object.entries(room.exits).forEach(([dir, exit]) => {
-        if (exit && exit?.to && exit.to >= areaData.lower_vnum && exit.to < areaData.upper_vnum) {
-          exit.to = (exit.to - areaData.lower_vnum) + newLower;
+        if (exit?.to) {
+          exit.to = revnum(exit.to);
         }
     });
     reVnumReset(room?.resets || []);
   });
   [areaData?.roomprogs, areaData?.mobprogs, areaData?.objprogs].forEach((progs) => {
     progs?.forEach((prog) => {
-      prog.vnum = (prog.vnum - areaData.lower_vnum) + newLower;
+      prog.vnum = revnum(prog.vnum);
       prog.code = prog.code.replaceAll(
         /(^|(?!\n)) *(track|goto|at|[gco]?transfer|if\s*(room|mobhere|objhere|mobexists|objexists|carries|wears|contains|vnum))\b.*/gi,
-        (candidateLine) => candidateLine.replaceAll(/\d+/gs, (num) => {
-          var n = parseInt(num);
-          if (n >= areaData.lower_vnum && n < areaData.upper_vnum) {
-            return (n - areaData.lower_vnum) + newLower;
-          }
-          return n;
-        })
+        (candidateLine) => candidateLine.replaceAll(/\d+/gs, (num) => revnum(parseInt(num)))
       );
     });
   });
-  areaData.upper_vnum = (areaData.upper_vnum - areaData.lower_vnum) + newLower;
+  areaData.upper_vnum = revnum(areaData.upper_vnum);
   areaData.lower_vnum = newLower;
 };
 
