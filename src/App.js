@@ -18,7 +18,6 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
-  TextareaAutosize,
   Button,
   IconButton,
   Paper,
@@ -52,7 +51,6 @@ const roomGrid = [100, 60];
 const imageDimensions = [roomGrid[0] * 70, roomGrid[1] * 100];
 const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const awsEndpoint = process.env.REACT_APP_AWS_ENDPOINT;
-
 
 function centerRooms(rooms) {
   rooms = [...rooms];
@@ -102,7 +100,7 @@ const reVnum = (areaData, newLower) => {
   const reVnumReset = (resets) => {
     resets.forEach((reset) => {
       if (reset.vnum >= areaData.lower_vnum && reset.vnum < areaData.upper_vnum) {
-        reset.vnum = (reset.vnum - areaData.lower_vnum) + newLower;
+        reset.vnum = reset.vnum - areaData.lower_vnum + newLower;
       }
       if (reset.objects) {
         reset.objects = reVnumReset(reset.objects);
@@ -112,29 +110,35 @@ const reVnum = (areaData, newLower) => {
 
   const revnum = (vnum) => {
     if (vnum >= areaData.lower_vnum && vnum <= areaData.upper_vnum) {
-      return (vnum - areaData.lower_vnum) + newLower;
+      return vnum - areaData.lower_vnum + newLower;
     }
     return vnum;
   };
 
   areaData?.mobs?.forEach((mob) => {
     mob.vnum = revnum(mob.vnum);
-    mob?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
+    mob?.progs?.forEach((trig) => {
+      trig.vnum = revnum(trig.vnum);
+    });
     if (mob.group) {
       mob.group = revnum(mob.group);
     }
   });
   areaData?.objects?.forEach((obj) => {
     obj.vnum = revnum(obj.vnum);
-    obj?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
+    obj?.progs?.forEach((trig) => {
+      trig.vnum = revnum(trig.vnum);
+    });
   });
   areaData?.rooms?.forEach((room) => {
     room.vnum = revnum(room.vnum);
-    room?.progs?.forEach((trig) => { trig.vnum = revnum(trig.vnum); });
+    room?.progs?.forEach((trig) => {
+      trig.vnum = revnum(trig.vnum);
+    });
     Object.entries(room.exits).forEach(([dir, exit]) => {
-        if (exit?.to) {
-          exit.to = revnum(exit.to);
-        }
+      if (exit?.to) {
+        exit.to = revnum(exit.to);
+      }
     });
     reVnumReset(room?.resets || []);
   });
@@ -151,26 +155,26 @@ const reVnum = (areaData, newLower) => {
   areaData.lower_vnum = newLower;
 };
 
-const areaDataReducer = ({areaData, editData}, action) => {
+const areaDataReducer = ({ areaData, editData }, action) => {
   switch (action.type) {
     case "SET_AREA":
       areaData = action.payload;
       break;
     case "AREA_UPDATED":
-      areaData = {...areaData};
+      areaData = { ...areaData };
       break;
     case "CENTER_ROOMS":
       areaData.rooms = centerRooms(areaData?.rooms || []);
       break;
     case "REVNUM_AREA":
       reVnum(areaData, action.newLower);
-      areaData = {...areaData};
+      areaData = { ...areaData };
       break;
     case "DEFRAG_ROOMS":
       areaData.rooms = defragRooms(areaData.rooms, areaData.lower_vnum);
       break;
     case "EDIT":
-      editData = {...action?.payload};
+      editData = { ...action?.payload };
       break;
     case "CLEAR_EDIT":
       editData = {};
@@ -178,18 +182,18 @@ const areaDataReducer = ({areaData, editData}, action) => {
     default:
       break;
   }
-  return {areaData: areaData, editData: editData};
+  return { areaData: areaData, editData: editData };
 };
 
 const AreaEditorContext = React.createContext();
 
 function cleanupArea(areaData) {
-  areaData = {rooms: [], ...areaData};
+  areaData = { rooms: [], ...areaData };
   areaData.rooms = areaData.rooms.filter((room) => room.vnum);
   areaData.rooms.forEach((room) => {
     Object.entries(room.exits).forEach(([dir, exit]) => {
-        room.exits[dir] = objFilter(exit, (key, value) => value);
-    })
+      room.exits[dir] = objFilter(exit, (key, value) => value);
+    });
     room.exits = objFilter(room.exits, (dir, exit) => exit && exit.to);
   });
   return areaData;
@@ -210,12 +214,6 @@ function shuffled(lst) {
     .map((item) => ({ item, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
-}
-
-function formatTextArea(name) {
-  const text = wordWrap(document.getElementById(name).value);
-  document.getElementById(name).value = text;
-  return text;
 }
 
 function wordWrap(str) {
@@ -430,22 +428,22 @@ const roomFlags = [
 ];
 
 const EditForm = (props) => {
-    return (
-      <Paper
-        style={{
-          position: "absolute",
-          width: 600,
-          top: 58,
-          bottom: 0,
-          right: 0,
-          overflowY: "scroll",
-          overflowX: "hidden",
-          padding: 20,
-        }}
-      >
-        {props.children}
-      </Paper>
-    );
+  return (
+    <Paper
+      style={{
+        position: "absolute",
+        width: 600,
+        top: 58,
+        bottom: 0,
+        right: 0,
+        overflowY: "scroll",
+        overflowX: "hidden",
+        padding: 20,
+      }}
+    >
+      {props.children}
+    </Paper>
+  );
 };
 
 const ExitLine = ({ from, to }) => {
@@ -512,7 +510,7 @@ const StyledTableRow = withStyles((theme) => ({
 }))(TableRow);
 
 function AreaEditor({ style }) {
-  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const viewer = React.useRef(null);
   const [value, setValue] = React.useState(INITIAL_VALUE);
   const [dimensions, setDimensions] = React.useState([0, 0]);
@@ -544,7 +542,7 @@ function AreaEditor({ style }) {
   const updatePosition = (room, eventData) => {
     room.editor_grid_x = (eventData.x - imageDimensions[0] / 2) / roomGrid[0];
     room.editor_grid_y = (eventData.y - imageDimensions[1] / 2) / roomGrid[1];
-    dispatch({type: 'AREA_UPDATED'});
+    dispatch({ type: "AREA_UPDATED" });
   };
 
   const exitColor = (room, dir) => {
@@ -568,9 +566,12 @@ function AreaEditor({ style }) {
       return;
     }
     if (editData && editData.mode === "exit" && !editData?.data?.to) {
-      dispatch({type: 'EDIT', payload: {...editData, data: {...editData.data, to: room.vnum}}});
+      dispatch({
+        type: "EDIT",
+        payload: { ...editData, data: { ...editData.data, to: room.vnum } },
+      });
     } else {
-      dispatch({type: 'EDIT', payload: {mode: "room", data: room}});
+      dispatch({ type: "EDIT", payload: { mode: "room", data: room } });
     }
   };
 
@@ -638,7 +639,15 @@ function AreaEditor({ style }) {
                   if (!(dir in room.exits) || !room.exits[dir].to) {
                     room.exits[dir] = { to: null };
                   }
-                  dispatch({type: 'EDIT', payload: {mode: "exit", data: room.exits[dir], room: room, dir: dir}});
+                  dispatch({
+                    type: "EDIT",
+                    payload: {
+                      mode: "exit",
+                      data: room.exits[dir],
+                      room: room,
+                      dir: dir,
+                    },
+                  });
                 }}
               />
               <text
@@ -718,7 +727,8 @@ function AreaEditor({ style }) {
   }, []);
 
   const lines = React.useMemo(() => {
-    return areaData?.rooms?.map((room) =>
+    return areaData?.rooms
+      ?.map((room) =>
         Object.entries(room.exits).map(([door, exit]) => {
           const from = roomMap[room.vnum];
           const to = roomMap[exit.to];
@@ -734,10 +744,7 @@ function AreaEditor({ style }) {
 
   const addRoom = (e) => {
     const bounds = e.target.getBoundingClientRect();
-    const grid = [
-      bounds.width / (imageDimensions[0] / roomGrid[0]),
-      bounds.height / (imageDimensions[1] / roomGrid[1]),
-    ];
+    const grid = [bounds.width / (imageDimensions[0] / roomGrid[0]), bounds.height / (imageDimensions[1] / roomGrid[1])];
     setAddRoomMode(false);
     for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
@@ -751,7 +758,7 @@ function AreaEditor({ style }) {
           room_flags: [],
           sector: "inside",
         });
-        dispatch({type: 'AREA_UPDATED'});
+        dispatch({ type: "AREA_UPDATED" });
         return;
       }
     }
@@ -781,14 +788,14 @@ function AreaEditor({ style }) {
       <Tooltip title="Defrag Rooms">
         <IconButton
           onClick={() => {
-            dispatch({type: "DEFRAG_ROOMS"});
+            dispatch({ type: "DEFRAG_ROOMS" });
           }}
         >
           <LineStyleIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Re-Center Area">
-        <IconButton onClick={() => dispatch({type: "CENTER_ROOMS"})}>
+        <IconButton onClick={() => dispatch({ type: "CENTER_ROOMS" })}>
           <ZoomOutMapIcon />
         </IconButton>
       </Tooltip>
@@ -838,14 +845,46 @@ function AreaEditor({ style }) {
   );
 }
 
+const FormattableTextField = (props) => {
+  const textEditor = React.useRef(null);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <TextField
+        multiline
+        rows={5}
+        label={props.label}
+        variant="outlined"
+        defaultValue={props.defaultValue}
+        onChange={props.onChange}
+        style={{ width: "100%", marginBottom: 15 }}
+        id={props.id}
+        inputRef={textEditor}
+      ></TextField>
+      <Tooltip title="Format Text">
+        <IconButton
+          variant="contained"
+          onClick={() => {
+            textEditor.current.value = wordWrap(textEditor.current.value);
+            props.onChange();
+          }}
+          style={{ position: "absolute", top: 0, right: 0 }}
+        >
+          <WrapTextIcon color="secondary" style={{ fontSize: 20 }}></WrapTextIcon>
+        </IconButton>
+      </Tooltip>
+    </div>
+  );
+};
+
 function ObjectForm(props) {
-  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const objEditData = React.useMemo(() => editData.data, [editData]);
 
   const updateObject = () => {
     Object.assign(editData.data, objEditData);
-    dispatch({type: 'AREA_UPDATED'});
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "AREA_UPDATED" });
+    dispatch({ type: "CLEAR_EDIT" });
   };
 
   const stripObject = (resets, vnum) => {
@@ -867,14 +906,14 @@ function ObjectForm(props) {
         room.resets = stripObject(room.resets, vnum);
       }
     });
-    dispatch({type: 'AREA_UPDATED'});
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "AREA_UPDATED" });
+    dispatch({ type: "CLEAR_EDIT" });
   };
 
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Object #{objEditData.vnum}
@@ -908,6 +947,17 @@ function ObjectForm(props) {
             objEditData.description = e.target.value;
           }}
         />
+        <TextField
+          multiline
+          rows={5}
+          label="Builder Notes"
+          variant="outlined"
+          defaultValue={objEditData.notes}
+          onChange={(e) => {
+            objEditData.notes = e.target.value;
+          }}
+          style={{ width: "100%", marginBottom: 15 }}
+        />
         <div style={{ textAlign: "left" }}>
           <Button
             variant="contained"
@@ -921,7 +971,7 @@ function ObjectForm(props) {
             <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateObject}>
               Update
             </Button>
-            <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
+            <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
               Cancel
             </Button>
           </div>
@@ -932,13 +982,13 @@ function ObjectForm(props) {
 }
 
 function MobForm(props) {
-  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const mobEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
 
   const updateMob = () => {
     Object.assign(editData.data, mobEditData);
-    dispatch({type: 'AREA_UPDATED'});
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "AREA_UPDATED" });
+    dispatch({ type: "CLEAR_EDIT" });
   };
 
   const deleteMob = (vnum) => {
@@ -951,14 +1001,14 @@ function MobForm(props) {
         room.resets = room.resets.filter((reset) => reset.type !== "mob" || reset.vnum !== vnum);
       }
     });
-    dispatch({type: 'AREA_UPDATED'});
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "AREA_UPDATED" });
+    dispatch({ type: "CLEAR_EDIT" });
   };
 
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Mob #{mobEditData.vnum}
@@ -992,24 +1042,24 @@ function MobForm(props) {
             mobEditData.long_description = e.target.value;
           }}
         />
-        <IconButton
-          variant="contained"
-          onClick={() => {
-            mobEditData.description = formatTextArea("mob-description");
-          }}
-          style={{ float: "right" }}
-        >
-          <WrapTextIcon color="secondary"></WrapTextIcon>
-        </IconButton>
-        <TextareaAutosize
-          minRows={5}
-          placeholder="Description"
+        <FormattableTextField
+          label="Description"
           defaultValue={mobEditData.description}
           onChange={(e) => {
             mobEditData.description = e.target.value;
           }}
-          style={{ width: "100%", marginBottom: 15 }}
           id="mob-description"
+        />
+        <TextField
+          multiline
+          rows={5}
+          label="Builder Notes"
+          variant="outlined"
+          defaultValue={mobEditData.notes}
+          onChange={(e) => {
+            mobEditData.notes = e.target.value;
+          }}
+          style={{ width: "100%", marginBottom: 15 }}
         />
         <div style={{ textAlign: "left", clear: "both" }}>
           <Button
@@ -1024,7 +1074,7 @@ function MobForm(props) {
             <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateMob}>
               Update
             </Button>
-            <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
+            <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
               Cancel
             </Button>
           </div>
@@ -1035,7 +1085,7 @@ function MobForm(props) {
 }
 
 function ExitForm(props) {
-  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const dir = editData.dir;
   const room = editData.room;
   const exitData = editData.data;
@@ -1056,9 +1106,9 @@ function ExitForm(props) {
         Object.assign(toRoom.exits[rev], exitEditData);
       }
       toRoom.exits[rev].to = room.vnum;
-      dispatch({type: 'CLEAR_EDIT'});
+      dispatch({ type: "CLEAR_EDIT" });
     }
-    dispatch({type: 'AREA_UPDATED'});
+    dispatch({ type: "AREA_UPDATED" });
   };
 
   const deleteExit = () => {
@@ -1071,14 +1121,14 @@ function ExitForm(props) {
       delete toRoom.exits[rev];
     }
     delete room.exits[dir];
-    dispatch({type: 'AREA_UPDATED'});
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "AREA_UPDATED" });
+    dispatch({ type: "CLEAR_EDIT" });
   };
 
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
+        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         <h2>
@@ -1147,7 +1197,7 @@ function ExitForm(props) {
                 <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={acceptAndReciprocate}>
                   Update
                 </Button>
-                <Button variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
+                <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
                   Cancel
                 </Button>
               </div>
@@ -1160,7 +1210,7 @@ function ExitForm(props) {
 }
 
 function RoomForm(props) {
-  const {areaData, editData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const [updateEnabled, setUpdateEnabled] = React.useState(false);
   const [tab, setTab] = React.useState(0);
   const roomEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
@@ -1173,12 +1223,12 @@ function RoomForm(props) {
     if (!window.confirm("Delete Room #" + vnum + "?")) {
       return;
     }
-    dispatch({type: 'CLEAR_EDIT'});
+    dispatch({ type: "CLEAR_EDIT" });
     areaData.rooms = areaData.rooms.filter((room) => room.vnum !== vnum);
     areaData.rooms.forEach((room) => {
       room.exits = objFilter(room.exits, (dir, exit) => exit.to !== vnum);
     });
-    dispatch({type: 'AREA_UPDATED'});
+    dispatch({ type: "AREA_UPDATED" });
   };
 
   const resetName = (reset) => {
@@ -1208,7 +1258,7 @@ function RoomForm(props) {
 
   return (
     <EditForm key={"room-" + roomEditData.vnum}>
-      <IconButton variant="contained" onClick={() => dispatch({type: 'CLEAR_EDIT'})} style={{ float: "right" }}>
+      <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
         <CancelIcon color="secondary"></CancelIcon>
       </IconButton>
       <Tabs value={tab} onChange={(e, val) => setTab(val)} textColor="secondary" indicatorColor="secondary">
@@ -1222,7 +1272,6 @@ function RoomForm(props) {
         <form>
           <h2 style={{ margin: 15, padding: 0 }}>Room #{roomEditData.vnum}</h2>
           <TextField
-            id="room-name"
             label="Name"
             variant="outlined"
             defaultValue={roomEditData.name}
@@ -1232,25 +1281,25 @@ function RoomForm(props) {
               setUpdateEnabled(true);
             }}
           />
-          <IconButton
-            variant="contained"
-            onClick={() => {
-              roomEditData.description = formatTextArea("roomDescription");
-            }}
-            style={{ float: "right" }}
-          >
-            <WrapTextIcon color="secondary"></WrapTextIcon>
-          </IconButton>
-          <TextareaAutosize
-            minRows={5}
-            placeholder="Description"
+          <FormattableTextField
+            label="Description"
             defaultValue={roomEditData.description}
             onChange={(e) => {
               roomEditData.description = e.target.value;
               setUpdateEnabled(true);
             }}
+          />
+          <TextField
+            multiline
+            rows={4}
+            variant="outlined"
+            label="Builder Notes"
+            defaultValue={roomEditData.notes}
+            onChange={(e) => {
+              roomEditData.notes = e.target.value;
+              setUpdateEnabled(true);
+            }}
             style={{ width: "100%", marginBottom: 15 }}
-            id="roomDescription"
           />
           <FormControl style={{ width: "100%", marginBottom: 15 }}>
             <InputLabel id="room-sector">Sector</InputLabel>
@@ -1324,7 +1373,7 @@ function RoomForm(props) {
               Delete Room
             </Button>
             <div style={{ float: "right" }}>
-              <Button variant="contained" style={{ marginRight: 5 }} onClick={() => dispatch({type: 'CLEAR_EDIT'})}>
+              <Button variant="contained" style={{ marginRight: 5 }} onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
                 Cancel
               </Button>
               <Button
@@ -1334,8 +1383,8 @@ function RoomForm(props) {
                 style={{ marginRight: 5 }}
                 onClick={() => {
                   Object.assign(editData.data, roomEditData);
-                  dispatch({type: 'AREA_UPDATED'});
-                  dispatch({type: 'CLEAR_EDIT'});
+                  dispatch({ type: "AREA_UPDATED" });
+                  dispatch({ type: "CLEAR_EDIT" });
                 }}
               >
                 Update
@@ -1349,7 +1398,7 @@ function RoomForm(props) {
 }
 
 const AreaEdit = (props) => {
-  const {areaData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, dispatch } = React.useContext(AreaEditorContext);
   const [updateEnabled, setUpdateEnabled] = React.useState(false);
   const areaEditData = { ...areaData };
 
@@ -1419,6 +1468,22 @@ const AreaEdit = (props) => {
             style={{ width: 400, marginBottom: 15 }}
           />
         </div>
+        <div>
+          <TextField
+            multiline
+            rows={5}
+            disabled={false}
+            id="area-notes"
+            label="Builder Notes"
+            variant="outlined"
+            defaultValue={areaEditData.notes}
+            style={{ width: 400, marginBottom: 15 }}
+            onChange={(e) => {
+              areaEditData.notes = e.target.value;
+              setUpdateEnabled(true);
+            }}
+          />
+        </div>
         <div style={{ width: 400, textAlign: "right" }}>
           <Button
             disabled={!areaData.lower_vnum}
@@ -1426,10 +1491,10 @@ const AreaEdit = (props) => {
             color="primary"
             style={{ marginRight: 5 }}
             onClick={() => {
-              dispatch({type: 'SET_AREA', payload: areaEditData});
+              dispatch({ type: "SET_AREA", payload: areaEditData });
               const newLower = parseInt(prompt("New Lower Vnum?"));
               if (!isNaN(newLower)) {
-                dispatch({type: "REVNUM_AREA", newLower: newLower});
+                dispatch({ type: "REVNUM_AREA", newLower: newLower });
                 Object.assign(areaEditData, areaData);
                 setUpdateEnabled(false);
               } else {
@@ -1445,7 +1510,7 @@ const AreaEdit = (props) => {
             color="primary"
             style={{ marginRight: 5 }}
             onClick={() => {
-              dispatch({type: 'SET_AREA', payload: areaEditData});
+              dispatch({ type: "SET_AREA", payload: areaEditData });
               setUpdateEnabled(false);
             }}
           >
@@ -1458,7 +1523,7 @@ const AreaEdit = (props) => {
 };
 
 function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileName, profile }) {
-  const {areaData, dispatch} = React.useContext(AreaEditorContext);
+  const { areaData, dispatch } = React.useContext(AreaEditorContext);
   const [fileList, setFileList] = React.useState(null);
   const user = profile && profile.googleId;
 
@@ -1466,7 +1531,10 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
     fetch(awsEndpoint + "?area_action=put&user=" + encodeURIComponent(user) + "&file=" + encodeURIComponent(fileName))
       .then((res) => res.json())
       .then((res) => {
-        fetch(res.url, { method: "PUT", body: JSON.stringify(cleanupArea(areaData)) }).then(() => setFileList(null));
+        fetch(res.url, {
+          method: "PUT",
+          body: JSON.stringify(cleanupArea(areaData)),
+        }).then(() => setFileList(null));
       });
     setFileName(fileName);
     setFileMenuOpen(false);
@@ -1481,7 +1549,7 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
           .then((loadedAreaData) => {
             setFileMenuOpen(false);
             setFileName(fileName);
-            dispatch({type: 'SET_AREA', payload: loadedAreaData});
+            dispatch({ type: "SET_AREA", payload: loadedAreaData });
           });
       });
   };
@@ -1536,10 +1604,7 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
                     <CircularProgress />
                   ) : (
                     fileList.map((file) => (
-                      <MenuItem
-                        style={{ padding: 0, paddingRight: 10 }}
-                        onClick={() => loadFile(file.url, file.filename)}
-                      >
+                      <MenuItem style={{ padding: 0, paddingRight: 10 }} onClick={() => loadFile(file.url, file.filename)}>
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1563,7 +1628,10 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
 }
 
 function App() {
-  const [{areaData, editData}, dispatch] = React.useReducer(areaDataReducer, {areaData: {}, editData: {}});
+  const [{ areaData, editData }, dispatch] = React.useReducer(areaDataReducer, {
+    areaData: {},
+    editData: {},
+  });
   const [fileName, setFileName] = React.useState(null);
   const [activeTab, setActiveTab] = React.useState(0);
   const [profile, setProfile] = React.useState(null);
@@ -1583,8 +1651,8 @@ function App() {
           description: "A brand new object is here.",
         };
         areaData.objects.push(newObject);
-        dispatch({type: 'AREA_UPDATED'});
-        dispatch({type: 'EDIT', payload: {mode: 'obj', data: newObject}});
+        dispatch({ type: "AREA_UPDATED" });
+        dispatch({ type: "EDIT", payload: { mode: "obj", data: newObject } });
         return;
       }
     }
@@ -1603,8 +1671,8 @@ function App() {
           description: "This is a mob. It looks new.",
         };
         areaData.mobs.push(newMob);
-        dispatch({type: 'AREA_UPDATED'});
-        dispatch({type: 'EDIT', payload: {mode: 'mob', data: newMob}});
+        dispatch({ type: "AREA_UPDATED" });
+        dispatch({ type: "EDIT", payload: { mode: "mob", data: newMob } });
         return;
       }
     }
@@ -1623,24 +1691,27 @@ function App() {
   }, []);
 
   return (
-    <AreaEditorContext.Provider value={{ areaData: areaData, editData: editData, dispatch: dispatch }} >
+    <AreaEditorContext.Provider value={{ areaData: areaData, editData: editData, dispatch: dispatch }}>
       <div style={{ float: "right", padding: 8 }}>
         <Tooltip title="New Area">
           <IconButton
             variant="contained"
             onClick={() => {
               if (window.confirm("Create New Area?")) {
-                dispatch({type: 'SET_AREA', payload: {
-                  rooms: [],
-                  mobs: [],
-                  objects: [],
-                  lower_vnum: 100,
-                  upper_vnum: 199,
-                  security: 9,
-                  open: false,
-                  flags: [],
-                  min_level: 100,
-                }});
+                dispatch({
+                  type: "SET_AREA",
+                  payload: {
+                    rooms: [],
+                    mobs: [],
+                    objects: [],
+                    lower_vnum: 100,
+                    upper_vnum: 199,
+                    security: 9,
+                    open: false,
+                    flags: [],
+                    min_level: 100,
+                  },
+                });
                 setFileName("area.json");
               }
             }}
@@ -1654,12 +1725,7 @@ function App() {
           </IconButton>
         </Tooltip>
         <Tooltip title="Online Files">
-          <IconButton
-            ref={fileMenuAnchor}
-            variant="contained"
-            onClick={(e) => setFileMenuOpen(true)}
-            disabled={!profile}
-          >
+          <IconButton ref={fileMenuAnchor} variant="contained" onClick={(e) => setFileMenuOpen(true)} disabled={!profile}>
             <WbCloudyIcon color={profile ? "secondary" : "disabled"} />
           </IconButton>
         </Tooltip>
@@ -1715,7 +1781,15 @@ function App() {
               <TableBody>
                 {areaData?.mobs &&
                   areaData.mobs.map((mob) => (
-                    <StyledTableRow key={"mob-card-" + mob.vnum} onClick={() => dispatch({type: 'EDIT', payload: {mode: "mob", data: mob}})}>
+                    <StyledTableRow
+                      key={"mob-card-" + mob.vnum}
+                      onClick={() =>
+                        dispatch({
+                          type: "EDIT",
+                          payload: { mode: "mob", data: mob },
+                        })
+                      }
+                    >
                       <StyledTableCell component="th" scope="row">
                         {mob.vnum}
                       </StyledTableCell>
@@ -1752,7 +1826,15 @@ function App() {
               <TableBody>
                 {areaData?.objects &&
                   areaData.objects.map((object) => (
-                    <StyledTableRow key={"object-card-" + object.vnum} onClick={() => dispatch({type: 'EDIT', payload: {mode: "obj", data: object}})}>
+                    <StyledTableRow
+                      key={"object-card-" + object.vnum}
+                      onClick={() =>
+                        dispatch({
+                          type: "EDIT",
+                          payload: { mode: "obj", data: object },
+                        })
+                      }
+                    >
                       <StyledTableCell component="th" scope="row">
                         {object.vnum}
                       </StyledTableCell>
@@ -1767,10 +1849,10 @@ function App() {
           </TableContainer>
         </TabPanel>
       </div>
-      {editData?.mode === "room" && (<RoomForm />)}
-      {editData?.mode === "exit" && (<ExitForm />)}
-      {editData?.mode === "mob" && (<MobForm />)}
-      {editData?.mode === "obj" && (<ObjectForm />)}
+      {editData?.mode === "room" && <RoomForm />}
+      {editData?.mode === "exit" && <ExitForm />}
+      {editData?.mode === "mob" && <MobForm />}
+      {editData?.mode === "obj" && <ObjectForm />}
       <FileMenu
         setFileMenuOpen={setFileMenuOpen}
         fileMenuOpen={fileMenuOpen}
@@ -1786,7 +1868,11 @@ function App() {
               <MenuItem onClick={() => download(JSON.stringify(cleanupArea(areaData)), fileName, "application/json")}>
                 Save File
               </MenuItem>
-              <MenuItem onClick={() => download(JSON.stringify(cleanupArea(areaData)), filenamePrompt("Filename?"), "application/json")}>
+              <MenuItem
+                onClick={() =>
+                  download(JSON.stringify(cleanupArea(areaData)), filenamePrompt("Filename?"), "application/json")
+                }
+              >
                 Save File As
               </MenuItem>
               <input
@@ -1800,7 +1886,7 @@ function App() {
                   reader.onload = (e) => {
                     var loadedAreaData = JSON.parse(e.target.result);
                     initialPos(loadedAreaData?.rooms || []);
-                    dispatch({type: 'SET_AREA', payload: loadedAreaData});
+                    dispatch({ type: "SET_AREA", payload: loadedAreaData });
                     setLocalMenuOpen(false);
                   };
                   reader.readAsText(e.target.files[0]);
