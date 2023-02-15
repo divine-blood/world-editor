@@ -18,7 +18,6 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
-  TextareaAutosize,
   Button,
   IconButton,
   Paper,
@@ -215,12 +214,6 @@ function shuffled(lst) {
     .map((item) => ({ item, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
-}
-
-function formatTextArea(name) {
-  const text = wordWrap(document.getElementById(name).value);
-  document.getElementById(name).value = text;
-  return text;
 }
 
 function wordWrap(str) {
@@ -852,6 +845,38 @@ function AreaEditor({ style }) {
   );
 }
 
+const FormattableTextField = (props) => {
+  const textEditor = React.useRef(null);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <TextField
+        multiline
+        rows={5}
+        label={props.label}
+        variant="outlined"
+        defaultValue={props.defaultValue}
+        onChange={props.onChange}
+        style={{ width: "100%", marginBottom: 15 }}
+        id={props.id}
+        inputRef={textEditor}
+      ></TextField>
+      <Tooltip title="Format Text">
+        <IconButton
+          variant="contained"
+          onClick={() => {
+            textEditor.current.value = wordWrap(textEditor.current.value);
+            props.onChange();
+          }}
+          style={{ position: "absolute", top: 0, right: 0 }}
+        >
+          <WrapTextIcon color="secondary" style={{ fontSize: 20 }}></WrapTextIcon>
+        </IconButton>
+      </Tooltip>
+    </div>
+  );
+};
+
 function ObjectForm(props) {
   const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const objEditData = React.useMemo(() => editData.data, [editData]);
@@ -921,6 +946,17 @@ function ObjectForm(props) {
           onChange={(e) => {
             objEditData.description = e.target.value;
           }}
+        />
+        <TextField
+          multiline
+          rows={5}
+          label="Builder Notes"
+          variant="outlined"
+          defaultValue={objEditData.notes}
+          onChange={(e) => {
+            objEditData.notes = e.target.value;
+          }}
+          style={{ width: "100%", marginBottom: 15 }}
         />
         <div style={{ textAlign: "left" }}>
           <Button
@@ -1006,24 +1042,24 @@ function MobForm(props) {
             mobEditData.long_description = e.target.value;
           }}
         />
-        <IconButton
-          variant="contained"
-          onClick={() => {
-            mobEditData.description = formatTextArea("mob-description");
-          }}
-          style={{ float: "right" }}
-        >
-          <WrapTextIcon color="secondary"></WrapTextIcon>
-        </IconButton>
-        <TextareaAutosize
-          minRows={5}
-          placeholder="Description"
+        <FormattableTextField
+          label="Description"
           defaultValue={mobEditData.description}
           onChange={(e) => {
             mobEditData.description = e.target.value;
           }}
-          style={{ width: "100%", marginBottom: 15 }}
           id="mob-description"
+        />
+        <TextField
+          multiline
+          rows={5}
+          label="Builder Notes"
+          variant="outlined"
+          defaultValue={mobEditData.notes}
+          onChange={(e) => {
+            mobEditData.notes = e.target.value;
+          }}
+          style={{ width: "100%", marginBottom: 15 }}
         />
         <div style={{ textAlign: "left", clear: "both" }}>
           <Button
@@ -1236,7 +1272,6 @@ function RoomForm(props) {
         <form>
           <h2 style={{ margin: 15, padding: 0 }}>Room #{roomEditData.vnum}</h2>
           <TextField
-            id="room-name"
             label="Name"
             variant="outlined"
             defaultValue={roomEditData.name}
@@ -1246,25 +1281,25 @@ function RoomForm(props) {
               setUpdateEnabled(true);
             }}
           />
-          <IconButton
-            variant="contained"
-            onClick={() => {
-              roomEditData.description = formatTextArea("roomDescription");
-            }}
-            style={{ float: "right" }}
-          >
-            <WrapTextIcon color="secondary"></WrapTextIcon>
-          </IconButton>
-          <TextareaAutosize
-            minRows={5}
-            placeholder="Description"
+          <FormattableTextField
+            label="Description"
             defaultValue={roomEditData.description}
             onChange={(e) => {
               roomEditData.description = e.target.value;
               setUpdateEnabled(true);
             }}
+          />
+          <TextField
+            multiline
+            rows={4}
+            variant="outlined"
+            label="Builder Notes"
+            defaultValue={roomEditData.notes}
+            onChange={(e) => {
+              roomEditData.notes = e.target.value;
+              setUpdateEnabled(true);
+            }}
             style={{ width: "100%", marginBottom: 15 }}
-            id="roomDescription"
           />
           <FormControl style={{ width: "100%", marginBottom: 15 }}>
             <InputLabel id="room-sector">Sector</InputLabel>
@@ -1431,6 +1466,22 @@ const AreaEdit = (props) => {
             variant="outlined"
             value={areaEditData.upper_vnum}
             style={{ width: 400, marginBottom: 15 }}
+          />
+        </div>
+        <div>
+          <TextField
+            multiline
+            rows={5}
+            disabled={false}
+            id="area-notes"
+            label="Builder Notes"
+            variant="outlined"
+            defaultValue={areaEditData.notes}
+            style={{ width: 400, marginBottom: 15 }}
+            onChange={(e) => {
+              areaEditData.notes = e.target.value;
+              setUpdateEnabled(true);
+            }}
           />
         </div>
         <div style={{ width: 400, textAlign: "right" }}>
