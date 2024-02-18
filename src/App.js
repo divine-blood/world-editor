@@ -1413,9 +1413,10 @@ function RoomForm(props) {
       .then((json) => {
         setRoomEditData({
           ...roomEditData,
-          description: json.description,
+          description: wordWrap(json.description),
           name: json.name,
         });
+        setUpdateEnabled(true);
       });
   };
 
