@@ -1406,16 +1406,17 @@ function RoomForm(props) {
         "?area_action=ai-room&room=" +
         encodeURIComponent(JSON.stringify(roomRepr)),
       { method: "POST" }
-    ).then((response) => {
-      const data = response.json();
-      console.log(response);
-      console.log(data);
-      setRoomEditData({
-        ...roomEditData,
-        description: data.description,
-        name: data.name,
+    )
+      .then(function (response) {
+        return response.json();
+      })
+      .then((json) => {
+        setRoomEditData({
+          ...roomEditData,
+          description: json.description,
+          name: json.name,
+        });
       });
-    });
   };
 
   useEffect(() => {
