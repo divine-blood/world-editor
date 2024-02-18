@@ -1350,6 +1350,7 @@ function RoomForm(props) {
   const [roomEditData, setRoomEditData] = React.useState({ ...editData.data });
 
   React.useEffect(() => {
+    setRoomEditData({ ...editData.data });
     setUpdateEnabled(false);
   }, [editData.data]);
 
