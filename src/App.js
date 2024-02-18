@@ -1407,6 +1407,7 @@ function RoomForm(props) {
         encodeURIComponent(JSON.stringify(roomRepr)),
       { method: "POST" }
     ).then((response) => {
+      console.log(data);
       const data = response.json();
       setRoomEditData({
         ...roomEditData,
