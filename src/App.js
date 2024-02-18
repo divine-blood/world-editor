@@ -1392,7 +1392,6 @@ function RoomForm(props) {
   );
 
   const aiRoomDescriptions = () => {
-    console.log(roomEditData);
     const roomRepr = JSON.stringify({
       name: roomEditData.name,
       description: roomEditData.description,
@@ -1408,10 +1407,11 @@ function RoomForm(props) {
         encodeURIComponent(JSON.stringify(roomRepr)),
       { method: "POST" }
     ).then((response) => {
+      const data = response.json();
       setRoomEditData({
         ...roomEditData,
-        description: response.description,
-        name: response.name,
+        description: data.description,
+        name: data.name,
       });
     });
   };
