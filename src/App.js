@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Tooltip,
   Box,
@@ -63,8 +63,10 @@ function centerRooms(rooms) {
     Math.max(...rooms.map((room) => room.editor_grid_x)),
   ];
   rooms.forEach((room) => {
-    room.editor_grid_x -= xBounds[1] - Math.floor((xBounds[1] - xBounds[0]) / 2);
-    room.editor_grid_y -= yBounds[1] - Math.floor((yBounds[1] - yBounds[0]) / 2);
+    room.editor_grid_x -=
+      xBounds[1] - Math.floor((xBounds[1] - xBounds[0]) / 2);
+    room.editor_grid_y -=
+      yBounds[1] - Math.floor((yBounds[1] - yBounds[0]) / 2);
   });
   return rooms;
 }
@@ -77,7 +79,10 @@ function defragRooms(rooms, lowerVnum) {
     .forEach((room) => {
       for (var i = lowerVnum; i < room.vnum; i++) {
         const vnum = i;
-        if (rooms.find((r) => r.vnum === vnum) === undefined && !Object.values(moves).includes(i)) {
+        if (
+          rooms.find((r) => r.vnum === vnum) === undefined &&
+          !Object.values(moves).includes(i)
+        ) {
           moves[room.vnum] = i;
           break;
         }
@@ -99,7 +104,10 @@ function defragRooms(rooms, lowerVnum) {
 const reVnum = (areaData, newLower) => {
   const reVnumReset = (resets) => {
     resets.forEach((reset) => {
-      if (reset.vnum >= areaData.lower_vnum && reset.vnum < areaData.upper_vnum) {
+      if (
+        reset.vnum >= areaData.lower_vnum &&
+        reset.vnum < areaData.upper_vnum
+      ) {
         reset.vnum = reset.vnum - areaData.lower_vnum + newLower;
       }
       if (reset.objects) {
@@ -142,15 +150,18 @@ const reVnum = (areaData, newLower) => {
     });
     reVnumReset(room?.resets || []);
   });
-  [areaData?.roomprogs, areaData?.mobprogs, areaData?.objprogs].forEach((progs) => {
-    progs?.forEach((prog) => {
-      prog.vnum = revnum(prog.vnum);
-      prog.code = prog.code.replaceAll(
-        /(^|(?!\n)) *(track|goto|at|[gco]?transfer|if\s*(room|mobhere|objhere|mobexists|objexists|carries|wears|contains|vnum))\b.*/gi,
-        (candidateLine) => candidateLine.replaceAll(/\d+/gs, (num) => revnum(parseInt(num)))
-      );
-    });
-  });
+  [areaData?.roomprogs, areaData?.mobprogs, areaData?.objprogs].forEach(
+    (progs) => {
+      progs?.forEach((prog) => {
+        prog.vnum = revnum(prog.vnum);
+        prog.code = prog.code.replaceAll(
+          /(^|(?!\n)) *(track|goto|at|[gco]?transfer|if\s*(room|mobhere|objhere|mobexists|objexists|carries|wears|contains|vnum))\b.*/gi,
+          (candidateLine) =>
+            candidateLine.replaceAll(/\d+/gs, (num) => revnum(parseInt(num)))
+        );
+      });
+    }
+  );
   areaData.upper_vnum = revnum(areaData.upper_vnum);
   areaData.lower_vnum = newLower;
 };
@@ -226,7 +237,10 @@ function wordWrap(str) {
         paragraph = paragraph
           .replaceAll(/^([a-z])/g, (str, g) => g.toUpperCase())
           .replaceAll(/\s+/g, " ")
-          .replaceAll(/([.!?]) ([a-z])/g, (str, g1, g2) => g1 + " " + g2.toUpperCase());
+          .replaceAll(
+            /([.!?]) ([a-z])/g,
+            (str, g1, g2) => g1 + " " + g2.toUpperCase()
+          );
         let r = "";
         let line = "";
         paragraph.split(/\s+/g).forEach((w) => {
@@ -264,7 +278,10 @@ function initialPos(rooms) {
       }),
       {}
     );
-  var toPlace = rooms.filter((room) => room.editor_grid_x === undefined && room.editor_grid_y === undefined);
+  var toPlace = rooms.filter(
+    (room) =>
+      room.editor_grid_x === undefined && room.editor_grid_y === undefined
+  );
   const tryPlace = (vnum, newX, newY) => {
     if (!(vnum in roomMap) || taken[newX + " " + newY]) {
       return;
@@ -464,10 +481,26 @@ const ExitLine = ({ from, to }) => {
   }
   return (
     <line
-      x1={imageDimensions[0] / 2 + from.editor_grid_x * roomGrid[0] + dirInfo[fromDir].offsets.x}
-      y1={imageDimensions[1] / 2 + from.editor_grid_y * roomGrid[1] + dirInfo[fromDir].offsets.y}
-      x2={imageDimensions[0] / 2 + to.editor_grid_x * roomGrid[0] + dirInfo[toDir].offsets.x}
-      y2={imageDimensions[1] / 2 + to.editor_grid_y * roomGrid[1] + dirInfo[toDir].offsets.y}
+      x1={
+        imageDimensions[0] / 2 +
+        from.editor_grid_x * roomGrid[0] +
+        dirInfo[fromDir].offsets.x
+      }
+      y1={
+        imageDimensions[1] / 2 +
+        from.editor_grid_y * roomGrid[1] +
+        dirInfo[fromDir].offsets.y
+      }
+      x2={
+        imageDimensions[0] / 2 +
+        to.editor_grid_x * roomGrid[0] +
+        dirInfo[toDir].offsets.x
+      }
+      y2={
+        imageDimensions[1] / 2 +
+        to.editor_grid_y * roomGrid[1] +
+        dirInfo[toDir].offsets.y
+      }
       stroke="#0099FF"
       strokeWidth={2}
       style={{ pointerEvents: "none" }}
@@ -530,12 +563,18 @@ function AreaEditor({ style }) {
   const setUpView = React.useCallback((view) => {
     if (view) {
       viewer.current = view;
-      view.setPointOnViewerCenter(imageDimensions[0] / 2, imageDimensions[1] / 2, 2);
+      view.setPointOnViewerCenter(
+        imageDimensions[0] / 2,
+        imageDimensions[1] / 2,
+        2
+      );
     }
   }, []);
 
   const roomMap = React.useMemo(
-    () => areaData?.rooms && Object.fromEntries(areaData.rooms.map((room) => [room.vnum, room])),
+    () =>
+      areaData?.rooms &&
+      Object.fromEntries(areaData.rooms.map((room) => [room.vnum, room])),
     [areaData]
   );
 
@@ -612,14 +651,32 @@ function AreaEditor({ style }) {
           onClick={() => clickRoom(room)}
           xmlns="http://www.w3.org/2000/svg"
         >
-          <rect x={10} y={10} width={80} height={10} stroke="black" fill={sectors[room.sector].color} strokeWidth="1" />
+          <rect
+            x={10}
+            y={10}
+            width={80}
+            height={10}
+            stroke="black"
+            fill={sectors[room.sector].color}
+            strokeWidth="1"
+          />
           <rect
             x={10}
             y={10}
             width={80}
             height={40}
-            stroke={editData?.data?.mode === "room" && editData.data.vnum === room.vnum ? "red" : "black"}
-            strokeWidth={editData?.data?.mode === "room" && editData.data.vnum === room.vnum ? 3 : 1}
+            stroke={
+              editData?.data?.mode === "room" &&
+              editData.data.vnum === room.vnum
+                ? "red"
+                : "black"
+            }
+            strokeWidth={
+              editData?.data?.mode === "room" &&
+              editData.data.vnum === room.vnum
+                ? 3
+                : 1
+            }
             fill="transparent"
           />
           {Object.keys(dirInfo).map((dir) => (
@@ -678,28 +735,32 @@ function AreaEditor({ style }) {
 
   const gridLines = React.useMemo(() => {
     const center = [imageDimensions[0] / 2, imageDimensions[1] / 2];
-    const horizontal = Array.from(Array(imageDimensions[0] / roomGrid[0])).map((x, i) => (
-      <line
-        x1={i * roomGrid[0]}
-        y1={0}
-        x2={i * roomGrid[0]}
-        y2={imageDimensions[1]}
-        stroke="#DDD"
-        key={"horiz-grid-" + i}
-        style={{ pointerEvents: "none" }}
-      />
-    ));
-    const vertical = Array.from(Array(imageDimensions[1] / roomGrid[1])).map((x, i) => (
-      <line
-        y1={i * roomGrid[1]}
-        x1={0}
-        y2={i * roomGrid[1]}
-        x2={imageDimensions[0]}
-        stroke="#DDD"
-        key={"vert-grid-" + i}
-        style={{ pointerEvents: "none" }}
-      />
-    ));
+    const horizontal = Array.from(Array(imageDimensions[0] / roomGrid[0])).map(
+      (x, i) => (
+        <line
+          x1={i * roomGrid[0]}
+          y1={0}
+          x2={i * roomGrid[0]}
+          y2={imageDimensions[1]}
+          stroke="#DDD"
+          key={"horiz-grid-" + i}
+          style={{ pointerEvents: "none" }}
+        />
+      )
+    );
+    const vertical = Array.from(Array(imageDimensions[1] / roomGrid[1])).map(
+      (x, i) => (
+        <line
+          y1={i * roomGrid[1]}
+          x1={0}
+          y2={i * roomGrid[1]}
+          x2={imageDimensions[0]}
+          stroke="#DDD"
+          key={"vert-grid-" + i}
+          style={{ pointerEvents: "none" }}
+        />
+      )
+    );
     return horizontal
       .concat(vertical)
       .concat([
@@ -733,7 +794,14 @@ function AreaEditor({ style }) {
           const from = roomMap[room.vnum];
           const to = roomMap[exit.to];
           if (from && to) {
-            return <ExitLine from={from} to={to} stroke="red" key={"exit-" + room.vnum + "-" + door} />;
+            return (
+              <ExitLine
+                from={from}
+                to={to}
+                stroke="red"
+                key={"exit-" + room.vnum + "-" + door}
+              />
+            );
           } else {
             return <></>;
           }
@@ -744,7 +812,10 @@ function AreaEditor({ style }) {
 
   const addRoom = (e) => {
     const bounds = e.target.getBoundingClientRect();
-    const grid = [bounds.width / (imageDimensions[0] / roomGrid[0]), bounds.height / (imageDimensions[1] / roomGrid[1])];
+    const grid = [
+      bounds.width / (imageDimensions[0] / roomGrid[0]),
+      bounds.height / (imageDimensions[1] / roomGrid[1]),
+    ];
     setAddRoomMode(false);
     for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
@@ -776,12 +847,18 @@ function AreaEditor({ style }) {
       }}
     >
       <Tooltip title="Add Room">
-        <IconButton color={addRoomMode ? "secondary" : ""} onClick={() => setAddRoomMode(!addRoomMode)}>
+        <IconButton
+          color={addRoomMode ? "secondary" : ""}
+          onClick={() => setAddRoomMode(!addRoomMode)}
+        >
           <AddLocationIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Lock Add Room">
-        <IconButton color={lockAddRoomMode ? "secondary" : ""} onClick={() => setLockAddRoomMode(!lockAddRoomMode)}>
+        <IconButton
+          color={lockAddRoomMode ? "secondary" : ""}
+          onClick={() => setLockAddRoomMode(!lockAddRoomMode)}
+        >
           <LockIcon />
         </IconButton>
       </Tooltip>
@@ -827,7 +904,11 @@ function AreaEditor({ style }) {
         scaleFactorOnWheel={1.4}
         customToolbar={MapToolBar}
       >
-        <svg width={imageDimensions[0]} height={imageDimensions[1]} xmlns="http://www.w3.org/2000/svg">
+        <svg
+          width={imageDimensions[0]}
+          height={imageDimensions[1]}
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <rect
             x={0}
             y={0}
@@ -870,7 +951,10 @@ const FormattableTextField = (props) => {
           }}
           style={{ position: "absolute", top: 0, right: 0 }}
         >
-          <WrapTextIcon color="secondary" style={{ fontSize: 20 }}></WrapTextIcon>
+          <WrapTextIcon
+            color="secondary"
+            style={{ fontSize: 20 }}
+          ></WrapTextIcon>
         </IconButton>
       </Tooltip>
     </div>
@@ -893,7 +977,9 @@ function ObjectForm(props) {
         reset.objects = stripObject(reset.objects, vnum);
       }
     });
-    return resets.filter((reset) => reset.type !== "object" || reset.vnum !== vnum);
+    return resets.filter(
+      (reset) => reset.type !== "object" || reset.vnum !== vnum
+    );
   };
 
   const deleteObject = (vnum) => {
@@ -913,7 +999,11 @@ function ObjectForm(props) {
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
+        <IconButton
+          variant="contained"
+          onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+          style={{ float: "right" }}
+        >
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Object #{objEditData.vnum}
@@ -968,10 +1058,18 @@ function ObjectForm(props) {
             Delete Object
           </Button>
           <div style={{ float: "right" }}>
-            <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateObject}>
+            <Button
+              variant="contained"
+              color="primary"
+              style={{ marginRight: 15 }}
+              onClick={updateObject}
+            >
               Update
             </Button>
-            <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
+            <Button
+              variant="contained"
+              onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+            >
               Cancel
             </Button>
           </div>
@@ -998,7 +1096,9 @@ function MobForm(props) {
     areaData.mobs = areaData.mobs.filter((mob) => mob.vnum !== vnum);
     areaData.rooms.forEach((room) => {
       if (room.resets) {
-        room.resets = room.resets.filter((reset) => reset.type !== "mob" || reset.vnum !== vnum);
+        room.resets = room.resets.filter(
+          (reset) => reset.type !== "mob" || reset.vnum !== vnum
+        );
       }
     });
     dispatch({ type: "AREA_UPDATED" });
@@ -1008,7 +1108,11 @@ function MobForm(props) {
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
+        <IconButton
+          variant="contained"
+          onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+          style={{ float: "right" }}
+        >
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         Mob #{mobEditData.vnum}
@@ -1071,10 +1175,18 @@ function MobForm(props) {
             Delete Mob
           </Button>
           <div style={{ float: "right" }}>
-            <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={updateMob}>
+            <Button
+              variant="contained"
+              color="primary"
+              style={{ marginRight: 15 }}
+              onClick={updateMob}
+            >
               Update
             </Button>
-            <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
+            <Button
+              variant="contained"
+              onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+            >
               Cancel
             </Button>
           </div>
@@ -1090,7 +1202,10 @@ function ExitForm(props) {
   const room = editData.room;
   const exitData = editData.data;
 
-  const exitEditData = React.useMemo(() => ({ flags: [], to: null, keyword: null, ...exitData }), [exitData]);
+  const exitEditData = React.useMemo(
+    () => ({ flags: [], to: null, keyword: null, ...exitData }),
+    [exitData]
+  );
 
   const acceptAndReciprocate = () => {
     var toRoom = areaData.rooms.find((room) => room.vnum === exitEditData.to);
@@ -1128,7 +1243,11 @@ function ExitForm(props) {
   return (
     <EditForm key={Date.now()}>
       <form>
-        <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
+        <IconButton
+          variant="contained"
+          onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+          style={{ float: "right" }}
+        >
           <CancelIcon color="secondary"></CancelIcon>
         </IconButton>
         <h2>
@@ -1159,7 +1278,9 @@ function ExitForm(props) {
                         onChange={(e) => {
                           exitEditData.flags = e.target.checked
                             ? exitEditData.flags.concat([e.target.name])
-                            : exitEditData.flags.filter((i) => i !== e.target.name);
+                            : exitEditData.flags.filter(
+                                (i) => i !== e.target.name
+                              );
                         }}
                         name={flag}
                       />
@@ -1190,14 +1311,27 @@ function ExitForm(props) {
               }}
             />
             <div style={{ textAlign: "left" }}>
-              <Button variant="contained" color="secondary" style={{ marginRight: 15 }} onClick={deleteExit}>
+              <Button
+                variant="contained"
+                color="secondary"
+                style={{ marginRight: 15 }}
+                onClick={deleteExit}
+              >
                 Delete
               </Button>
               <div style={{ float: "right" }}>
-                <Button variant="contained" color="primary" style={{ marginRight: 15 }} onClick={acceptAndReciprocate}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  style={{ marginRight: 15 }}
+                  onClick={acceptAndReciprocate}
+                >
                   Update
                 </Button>
-                <Button variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
+                <Button
+                  variant="contained"
+                  onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+                >
                   Cancel
                 </Button>
               </div>
@@ -1213,7 +1347,7 @@ function RoomForm(props) {
   const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
   const [updateEnabled, setUpdateEnabled] = React.useState(false);
   const [tab, setTab] = React.useState(0);
-  const roomEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
+  const [roomEditData, setRoomEditData] = React.useState({ ...editData.data });
 
   React.useEffect(() => {
     setUpdateEnabled(false);
@@ -1256,17 +1390,57 @@ function RoomForm(props) {
     </li>
   );
 
+  const aiRoomDescriptions = () => {
+    console.log(roomEditData);
+    const roomRepr = JSON.stringify({
+      name: roomEditData.name,
+      description: roomEditData.description,
+      sector: roomEditData.sector,
+      exits: Object.entries(roomEditData.exits).forEach(([dir, exit]) => [
+        dir,
+        areaData.rooms.filter((room) => room.vnum === exit.to)[0].name,
+      ]),
+    });
+    fetch(
+      awsEndpoint +
+        "?area_action=ai-room&room=" +
+        encodeURIComponent(JSON.stringify(roomRepr)),
+      { method: "POST" }
+    ).then((response) => {
+      setRoomEditData({
+        ...roomEditData,
+        description: response.description,
+        name: response.name,
+      });
+    });
+  };
+
+  useEffect(() => {
+    console.log(roomEditData);
+  }, [roomEditData]);
+
   return (
     <EditForm key={"room-" + roomEditData.vnum}>
-      <IconButton variant="contained" onClick={() => dispatch({ type: "CLEAR_EDIT" })} style={{ float: "right" }}>
+      <IconButton
+        variant="contained"
+        onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+        style={{ float: "right" }}
+      >
         <CancelIcon color="secondary"></CancelIcon>
       </IconButton>
-      <Tabs value={tab} onChange={(e, val) => setTab(val)} textColor="secondary" indicatorColor="secondary">
+      <Tabs
+        value={tab}
+        onChange={(e, val) => setTab(val)}
+        textColor="secondary"
+        indicatorColor="secondary"
+      >
         <Tab label="Room Data" id="room-edit-tab-0" />
         <Tab label="Resets" id="room-edit-tab-1" />
       </Tabs>
       <TabPanel style={{ display: tab === 1 ? "block" : "none" }}>
-        <ul>{roomEditData?.resets ? roomEditData.resets.map(renderNode) : null}</ul>
+        <ul>
+          {roomEditData?.resets ? roomEditData.resets.map(renderNode) : null}
+        </ul>
       </TabPanel>
       <TabPanel style={{ display: tab === 0 ? "block" : "none" }}>
         <form>
@@ -1274,29 +1448,33 @@ function RoomForm(props) {
           <TextField
             label="Name"
             variant="outlined"
-            defaultValue={roomEditData.name}
+            value={roomEditData.name}
             style={{ width: "100%", marginBottom: 15 }}
             onChange={(e) => {
-              roomEditData.name = e.target.value;
+              setRoomEditData({ ...roomEditData, name: e.target.value });
               setUpdateEnabled(true);
             }}
           />
-          <FormattableTextField
+          <TextField
+            multiline
+            rows={5}
+            variant="outlined"
             label="Description"
-            defaultValue={roomEditData.description}
+            value={roomEditData.description}
             onChange={(e) => {
-              roomEditData.description = e.target.value;
+              setRoomEditData({ ...roomEditData, description: e.target.value });
               setUpdateEnabled(true);
             }}
+            style={{ width: "100%", marginBottom: 15 }}
           />
           <TextField
             multiline
             rows={4}
             variant="outlined"
             label="Builder Notes"
-            defaultValue={roomEditData.notes}
+            value={roomEditData.notes}
             onChange={(e) => {
-              roomEditData.notes = e.target.value;
+              setRoomEditData({ ...roomEditData, notes: e.target.value });
               setUpdateEnabled(true);
             }}
             style={{ width: "100%", marginBottom: 15 }}
@@ -1306,9 +1484,9 @@ function RoomForm(props) {
             <Select
               labelId="Room Sector"
               id="room-selector"
-              defaultValue={roomEditData.sector}
+              value={roomEditData.sector}
               onChange={(e) => {
-                roomEditData.sector = e.target.value;
+                setRoomEditData({ ...roomEditData, sector: e.target.value });
                 setUpdateEnabled(true);
               }}
             >
@@ -1326,7 +1504,7 @@ function RoomForm(props) {
             value={roomEditData.heal_rate}
             style={{ width: "100%", marginBottom: 15, marginTop: 15 }}
             onChange={(e) => {
-              roomEditData.heal_rate = e.target.value;
+              setRoomEditData({ ...roomEditData, heal_rate: e.target.value });
               setUpdateEnabled(true);
             }}
           />
@@ -1337,7 +1515,7 @@ function RoomForm(props) {
             value={roomEditData.mana_rate}
             style={{ width: "100%", marginBottom: 15 }}
             onChange={(e) => {
-              roomEditData.mana_rate = e.target.value;
+              setRoomEditData({ ...roomEditData, mana_rate: e.target.value });
               setUpdateEnabled(true);
             }}
           />
@@ -1349,9 +1527,14 @@ function RoomForm(props) {
                     <Checkbox
                       defaultChecked={roomEditData.room_flags.includes(flag)}
                       onChange={(e) => {
-                        roomEditData.room_flags = e.target.checked
-                          ? roomEditData.room_flags.concat([e.target.name])
-                          : roomEditData.room_flags.filter((i) => i !== e.target.name);
+                        setRoomEditData({
+                          ...roomEditData,
+                          room_flags: e.target.checked
+                            ? roomEditData.room_flags.concat([e.target.name])
+                            : roomEditData.room_flags.filter(
+                                (i) => i !== e.target.name
+                              ),
+                        });
                         setUpdateEnabled(true);
                       }}
                       name={flag}
@@ -1373,8 +1556,22 @@ function RoomForm(props) {
               Delete Room
             </Button>
             <div style={{ float: "right" }}>
-              <Button variant="contained" style={{ marginRight: 5 }} onClick={() => dispatch({ type: "CLEAR_EDIT" })}>
+              <Button
+                variant="contained"
+                style={{ marginRight: 5 }}
+                onClick={() => dispatch({ type: "CLEAR_EDIT" })}
+              >
                 Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                style={{ marginRight: 5 }}
+                onClick={() => {
+                  aiRoomDescriptions();
+                }}
+              >
+                AI Room
               </Button>
               <Button
                 disabled={!updateEnabled}
@@ -1522,13 +1719,26 @@ const AreaEdit = (props) => {
   );
 };
 
-function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileName, profile }) {
+function FileMenu({
+  fileMenuOpen,
+  setFileMenuOpen,
+  anchorEl,
+  fileName,
+  setFileName,
+  profile,
+}) {
   const { areaData, dispatch } = React.useContext(AreaEditorContext);
   const [fileList, setFileList] = React.useState(null);
   const user = profile && profile.googleId;
 
   const saveFile = (fileName) => {
-    fetch(awsEndpoint + "?area_action=put&user=" + encodeURIComponent(user) + "&file=" + encodeURIComponent(fileName))
+    fetch(
+      awsEndpoint +
+        "?area_action=put&user=" +
+        encodeURIComponent(user) +
+        "&file=" +
+        encodeURIComponent(fileName)
+    )
       .then((res) => res.json())
       .then((res) => {
         fetch(res.url, {
@@ -1541,7 +1751,13 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
   };
 
   const loadFile = (url, fileName) => {
-    fetch(awsEndpoint + "?area_action=get&user=" + encodeURIComponent(user) + "&file=" + encodeURIComponent(fileName))
+    fetch(
+      awsEndpoint +
+        "?area_action=get&user=" +
+        encodeURIComponent(user) +
+        "&file=" +
+        encodeURIComponent(fileName)
+    )
       .then((res) => res.json())
       .then((res) => {
         fetch(res.url)
@@ -1584,27 +1800,41 @@ function FileMenu({ fileMenuOpen, setFileMenuOpen, anchorEl, fileName, setFileNa
   };
 
   return (
-    <Popper open={fileMenuOpen} anchorEl={anchorEl} role={undefined} transition disablePortal>
+    <Popper
+      open={fileMenuOpen}
+      anchorEl={anchorEl}
+      role={undefined}
+      transition
+      disablePortal
+    >
       {({ TransitionProps, placement }) => (
         <Grow
           {...TransitionProps}
           style={{
-            transformOrigin: placement === "bottom" ? "center top" : "center bottom",
+            transformOrigin:
+              placement === "bottom" ? "center top" : "center bottom",
           }}
         >
           <Paper>
             <ClickAwayListener onClickAway={() => setFileMenuOpen(false)}>
               <MenuList autoFocusItem={fileMenuOpen} id="menu-list-grow">
-                <MenuItem onClick={() => saveFile(fileName)}>Save To Cloud</MenuItem>
+                <MenuItem onClick={() => saveFile(fileName)}>
+                  Save To Cloud
+                </MenuItem>
                 <MenuItem onClick={saveAs}>Save To Cloud As...</MenuItem>
-                <MenuItem onClick={() => setFileList(null)}>Reload list</MenuItem>
+                <MenuItem onClick={() => setFileList(null)}>
+                  Reload list
+                </MenuItem>
                 <hr />
                 <div style={{ textAlign: "center" }}>
                   {fileList == null ? (
                     <CircularProgress />
                   ) : (
                     fileList.map((file) => (
-                      <MenuItem style={{ padding: 0, paddingRight: 10 }} onClick={() => loadFile(file.url, file.filename)}>
+                      <MenuItem
+                        style={{ padding: 0, paddingRight: 10 }}
+                        onClick={() => loadFile(file.url, file.filename)}
+                      >
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1643,7 +1873,9 @@ function App() {
   const addObject = () => {
     for (var i = areaData.lower_vnum; i < areaData.upper_vnum; i++) {
       const vnum = i;
-      if (areaData.objects.find((object) => object.vnum === vnum) === undefined) {
+      if (
+        areaData.objects.find((object) => object.vnum === vnum) === undefined
+      ) {
         const newObject = {
           vnum: vnum,
           name: "object new",
@@ -1691,7 +1923,9 @@ function App() {
   }, []);
 
   return (
-    <AreaEditorContext.Provider value={{ areaData: areaData, editData: editData, dispatch: dispatch }}>
+    <AreaEditorContext.Provider
+      value={{ areaData: areaData, editData: editData, dispatch: dispatch }}
+    >
       <div style={{ float: "right", padding: 8 }}>
         <Tooltip title="New Area">
           <IconButton
@@ -1720,12 +1954,21 @@ function App() {
           </IconButton>
         </Tooltip>
         <Tooltip title="Local Files">
-          <IconButton variant="contained" onClick={() => setLocalMenuOpen(true)} ref={localMenuIcon}>
+          <IconButton
+            variant="contained"
+            onClick={() => setLocalMenuOpen(true)}
+            ref={localMenuIcon}
+          >
             <ComputerIcon color="secondary" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Online Files">
-          <IconButton ref={fileMenuAnchor} variant="contained" onClick={(e) => setFileMenuOpen(true)} disabled={!profile}>
+          <IconButton
+            ref={fileMenuAnchor}
+            variant="contained"
+            onClick={(e) => setFileMenuOpen(true)}
+            disabled={!profile}
+          >
             <WbCloudyIcon color={profile ? "secondary" : "disabled"} />
           </IconButton>
         </Tooltip>
@@ -1740,21 +1983,28 @@ function App() {
         />
       </div>
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+        >
           <Tab label="Area" id="simple-tab-0" />
           <Tab label="Rooms" id="simple-tab-1" />
           <Tab label="Mobs" id="simple-tab-2" />
           <Tab label="Objects" id="simple-tab-3" />
         </Tabs>
       </Box>
-      <div style={{ position: "absolute", left: 0, top: 58, bottom: 0, right: 0 }}>
+      <div
+        style={{ position: "absolute", left: 0, top: 58, bottom: 0, right: 0 }}
+      >
         <TabPanel value={activeTab} index={0}>
           <AreaEdit />
         </TabPanel>
 
         <TabPanel value={activeTab} index={1}>
           {areaData?.rooms && <AreaEditor />}
-          <div style={{ position: "absolute", left: 10, top: 0, color: "black" }}>
+          <div
+            style={{ position: "absolute", left: 10, top: 0, color: "black" }}
+          >
             {areaData?.name} - {fileName}
           </div>
         </TabPanel>
@@ -1796,7 +2046,9 @@ function App() {
                       <StyledTableCell component="th" scope="row">
                         {mob.short_description}
                       </StyledTableCell>
-                      <StyledTableCell align="right">{mob.level}</StyledTableCell>
+                      <StyledTableCell align="right">
+                        {mob.level}
+                      </StyledTableCell>
                     </StyledTableRow>
                   ))}
               </TableBody>
@@ -1841,7 +2093,9 @@ function App() {
                       <StyledTableCell component="th" scope="row">
                         {object.short_description}
                       </StyledTableCell>
-                      <StyledTableCell align="right">{object.level}</StyledTableCell>
+                      <StyledTableCell align="right">
+                        {object.level}
+                      </StyledTableCell>
                     </StyledTableRow>
                   ))}
               </TableBody>
@@ -1861,16 +2115,34 @@ function App() {
         fileName={fileName}
         setFileName={setFileName}
       />
-      <Popper open={localMenuOpen} role={undefined} transition disablePortal anchorEl={localMenuIcon.current}>
+      <Popper
+        open={localMenuOpen}
+        role={undefined}
+        transition
+        disablePortal
+        anchorEl={localMenuIcon.current}
+      >
         <Paper>
           <ClickAwayListener onClickAway={() => setLocalMenuOpen(false)}>
             <MenuList autoFocusItem={fileMenuOpen} id="menu-list-grow">
-              <MenuItem onClick={() => download(JSON.stringify(cleanupArea(areaData)), fileName, "application/json")}>
+              <MenuItem
+                onClick={() =>
+                  download(
+                    JSON.stringify(cleanupArea(areaData)),
+                    fileName,
+                    "application/json"
+                  )
+                }
+              >
                 Save File
               </MenuItem>
               <MenuItem
                 onClick={() =>
-                  download(JSON.stringify(cleanupArea(areaData)), filenamePrompt("Filename?"), "application/json")
+                  download(
+                    JSON.stringify(cleanupArea(areaData)),
+                    filenamePrompt("Filename?"),
+                    "application/json"
+                  )
                 }
               >
                 Save File As
@@ -1890,7 +2162,9 @@ function App() {
                     setLocalMenuOpen(false);
                   };
                   reader.readAsText(e.target.files[0]);
-                  setFileName(e.target.value.split("\\").pop().split("/").pop());
+                  setFileName(
+                    e.target.value.split("\\").pop().split("/").pop()
+                  );
                 }}
               />
               <label htmlFor="upload-area-file">
