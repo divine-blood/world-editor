@@ -46,6 +46,7 @@ import DraggableCore from "react-draggable";
 import { INITIAL_VALUE, ReactSVGPanZoom } from "react-svg-pan-zoom";
 import { GoogleLogin } from "react-google-login";
 import { gapi } from "gapi-script";
+import { set } from "react-svg-pan-zoom/build-commonjs/features/common";
 
 const roomGrid = [100, 60];
 const imageDimensions = [roomGrid[0] * 70, roomGrid[1] * 100];
@@ -1081,7 +1082,11 @@ function ObjectForm(props) {
 
 function MobForm(props) {
   const { areaData, editData, dispatch } = React.useContext(AreaEditorContext);
-  const mobEditData = React.useMemo(() => ({ ...editData.data }), [editData]);
+  const [mobEditData, setMobEditData] = React.useState(editData.data);
+
+  useEffect(() => {
+    setMobEditData(editData.data);
+  }, [editData.data]);
 
   const updateMob = () => {
     Object.assign(editData.data, mobEditData);
@@ -1105,8 +1110,35 @@ function MobForm(props) {
     dispatch({ type: "CLEAR_EDIT" });
   };
 
+  const aiMobDescriptions = () => {
+    const mobRepr = JSON.stringify({
+      name: mobEditData.name,
+      short_description: mobEditData.short_description,
+      long_description: mobEditData.long_description,
+      description: mobEditData.description,
+    });
+    fetch(
+      awsEndpoint +
+        "?area_action=ai-mob&mob=" +
+        encodeURIComponent(JSON.stringify(mobRepr)),
+      { method: "POST" }
+    )
+      .then(function (response) {
+        return response.json();
+      })
+      .then((json) => {
+        setMobEditData({
+          ...mobEditData,
+          name: json.name,
+          short_description: json.short_description,
+          long_description: json.long_description,
+          description: wordWrap(json.description),
+        });
+      });
+  };
+
   return (
-    <EditForm key={Date.now()}>
+    <EditForm key={"mob-" + mobEditData.vnum}>
       <form>
         <IconButton
           variant="contained"
@@ -1120,48 +1152,57 @@ function MobForm(props) {
           id="mob-name"
           label="Name"
           variant="outlined"
-          defaultValue={mobEditData?.name}
+          value={mobEditData?.name}
           style={{ width: "100%", marginBottom: 15 }}
           onChange={(e) => {
-            mobEditData.name = e.target.value;
+            setMobEditData({ ...mobEditData, name: e.target.value });
           }}
         />
         <TextField
           id="mob-short_description"
           label="Short Description"
           variant="outlined"
-          defaultValue={mobEditData?.short_description}
+          value={mobEditData?.short_description}
           style={{ width: "100%", marginBottom: 15 }}
           onChange={(e) => {
-            mobEditData.short_description = e.target.value;
+            setMobEditData({
+              ...mobEditData,
+              short_description: e.target.value,
+            });
           }}
         />
         <TextField
           id="mob-long_description"
           label="Long Description"
           variant="outlined"
-          defaultValue={mobEditData?.long_description}
+          value={mobEditData?.long_description}
           style={{ width: "100%", marginBottom: 15 }}
           onChange={(e) => {
-            mobEditData.long_description = e.target.value;
+            setMobEditData({
+              ...mobEditData,
+              long_description: e.target.value,
+            });
           }}
-        />
-        <FormattableTextField
-          label="Description"
-          defaultValue={mobEditData.description}
-          onChange={(e) => {
-            mobEditData.description = e.target.value;
-          }}
-          id="mob-description"
         />
         <TextField
           multiline
           rows={5}
+          label="Description"
+          value={mobEditData.description}
+          onChange={(e) => {
+            setMobEditData({ ...mobEditData, description: e.target.value });
+          }}
+          id="mob-description"
+          style={{ width: "100%", marginBottom: 15 }}
+        />
+        <TextField
+          multiline
+          rows={4}
           label="Builder Notes"
           variant="outlined"
-          defaultValue={mobEditData.notes}
+          value={mobEditData.notes}
           onChange={(e) => {
-            mobEditData.notes = e.target.value;
+            setMobEditData({ ...mobEditData, notes: e.target.value });
           }}
           style={{ width: "100%", marginBottom: 15 }}
         />
@@ -1173,6 +1214,16 @@ function MobForm(props) {
             onClick={() => deleteMob(mobEditData.vnum)}
           >
             Delete Mob
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            style={{ marginRight: 5 }}
+            onClick={() => {
+              aiMobDescriptions();
+            }}
+          >
+            AI Mob
           </Button>
           <div style={{ float: "right" }}>
             <Button
