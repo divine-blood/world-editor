@@ -1215,17 +1215,17 @@ function MobForm(props) {
           >
             Delete Mob
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            style={{ marginRight: 5 }}
-            onClick={() => {
-              aiMobDescriptions();
-            }}
-          >
-            AI Mob
-          </Button>
           <div style={{ float: "right" }}>
+            <Button
+              variant="contained"
+              color="primary"
+              style={{ marginRight: 5 }}
+              onClick={() => {
+                aiMobDescriptions();
+              }}
+            >
+              AI Mob
+            </Button>
             <Button
               variant="contained"
               color="primary"
