@@ -464,43 +464,31 @@ const EditForm = (props) => {
   );
 };
 
-const ExitLine = ({ from, to }) => {
-  var fromDir = null;
-  var toDir = null;
-  Object.entries(from.exits).forEach(([dir, exit]) => {
-    if (exit.to === to.vnum) {
-      fromDir = dir;
-    }
-  });
-  Object.entries(to.exits).forEach(([dir, exit]) => {
-    if (exit.to === from.vnum) {
-      toDir = dir;
-    }
-  });
-  if (!toDir) {
-    toDir = dirInfo[fromDir].rev;
-  }
+const ExitLine = ({ from, to, fromDoor }) => {
+  const toDoor = dirInfo[fromDoor].rev;
+
   return (
     <line
+      marker-end="url(#arrow)"
       x1={
         imageDimensions[0] / 2 +
         from.editor_grid_x * roomGrid[0] +
-        dirInfo[fromDir].offsets.x
+        dirInfo[fromDoor].offsets.x
       }
       y1={
         imageDimensions[1] / 2 +
         from.editor_grid_y * roomGrid[1] +
-        dirInfo[fromDir].offsets.y
+        dirInfo[fromDoor].offsets.y
       }
       x2={
         imageDimensions[0] / 2 +
         to.editor_grid_x * roomGrid[0] +
-        dirInfo[toDir].offsets.x
+        dirInfo[toDoor].offsets.x
       }
       y2={
         imageDimensions[1] / 2 +
         to.editor_grid_y * roomGrid[1] +
-        dirInfo[toDir].offsets.y
+        dirInfo[toDoor].offsets.y
       }
       stroke="#0099FF"
       strokeWidth={2}
@@ -509,7 +497,7 @@ const ExitLine = ({ from, to }) => {
   );
 };
 
-function TabPanel(props: TabPanelProps) {
+function TabPanel(props) {
   const { children, value, index, ...other } = props;
 
   return (
@@ -652,6 +640,20 @@ function AreaEditor({ style }) {
           onClick={() => clickRoom(room)}
           xmlns="http://www.w3.org/2000/svg"
         >
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="5"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              fill="#0099FF"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 6 5 L 0 10 z" />
+            </marker>
+          </defs>
           <rect
             x={10}
             y={10}
@@ -797,6 +799,7 @@ function AreaEditor({ style }) {
           if (from && to) {
             return (
               <ExitLine
+                fromDoor={door}
                 from={from}
                 to={to}
                 stroke="red"
